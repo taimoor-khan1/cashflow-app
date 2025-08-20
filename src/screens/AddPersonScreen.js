@@ -7,8 +7,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../constants';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 
@@ -73,50 +76,58 @@ const AddPersonScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Add New Person</Text>
-          <Text style={styles.subtitle}>
-            Add someone to track your financial transactions with them
-          </Text>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add New Person</Text>
+          <View style={styles.placeholder} />
         </View>
+        
+        <Text style={styles.headerSubtitle}>
+          Add someone to track your financial transactions with them
+        </Text>
+      </LinearGradient>
 
-        <View style={styles.form}>
-          <CustomInput
-            label="Full Name"
-            value={formData.name}
-            onChangeText={(value) => handleInputChange('name', value)}
-            placeholder="Enter person's full name"
-            autoCapitalize="words"
-            autoCorrect={false}
-            error={errors.name}
-          />
-
-          <CustomInput
-            label="Notes (Optional)"
-            value={formData.notes}
-            onChangeText={(value) => handleInputChange('notes', value)}
-            placeholder="Add any notes about this person"
-            multiline
-            numberOfLines={3}
-            autoCapitalize="sentences"
-          />
-
-          <View style={styles.buttonContainer}>
-            <CustomButton
-              title="Cancel"
-              onPress={() => navigation.goBack()}
-              variant="outline"
-              style={styles.cancelButton}
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.form}>
+            <CustomInput
+              label="Full Name"
+              value={formData.name}
+              onChangeText={(value) => handleInputChange('name', value)}
+              placeholder="Enter person's full name"
+              autoCapitalize="words"
+              autoCorrect={false}
+              error={errors.name}
             />
+
+            <CustomInput
+              label="Notes (Optional)"
+              value={formData.notes}
+              onChangeText={(value) => handleInputChange('notes', value)}
+              placeholder="Add any notes about this person"
+              multiline
+              numberOfLines={3}
+              error={errors.notes}
+            />
+
             <CustomButton
               title="Add Person"
               onPress={handleSubmit}
@@ -124,9 +135,9 @@ const AddPersonScreen = ({ navigation }) => {
               style={styles.submitButton}
             />
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -135,43 +146,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: SPACING.XL,
-  },
   header: {
-    padding: SPACING.MD,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  title: {
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-    textAlign: 'center',
+    color: COLORS.WHITE,
   },
-  subtitle: {
+  placeholder: {
+    width: 40,
+  },
+  headerSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.SEMI_TRANSPARENT_WHITE,
     textAlign: 'center',
     lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
-  form: {
-    padding: SPACING.MD,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: SPACING.MD,
-    marginTop: SPACING.LG,
-  },
-  cancelButton: {
+  content: {
     flex: 1,
   },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  form: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    ...SHADOWS.MD,
+  },
   submitButton: {
-    flex: 2,
+    marginTop: 16,
   },
 });
 

@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA } from '../constants';
-import Card from '../components/Card';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
 import CustomButton from '../components/CustomButton';
 import TransactionItem from '../components/TransactionItem';
 import ImageViewer from '../components/ImageViewer';
@@ -21,7 +21,7 @@ const PersonDetailScreen = ({ navigation, route }) => {
   // Add safety check for personId
   if (!personId) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Invalid person ID</Text>
           <CustomButton
@@ -30,7 +30,7 @@ const PersonDetailScreen = ({ navigation, route }) => {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
   
@@ -43,7 +43,7 @@ const PersonDetailScreen = ({ navigation, route }) => {
 
   if (!person) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Person not found</Text>
           <CustomButton
@@ -52,7 +52,7 @@ const PersonDetailScreen = ({ navigation, route }) => {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -87,7 +87,7 @@ const PersonDetailScreen = ({ navigation, route }) => {
 
   const handleTransactionPress = (transactionId) => {
     // Navigate to transaction detail or edit
-    console.log('Transaction pressed:', transactionId);
+    navigation.navigate('TransactionDetail', { transactionId });
   };
 
   const handleAttachmentPress = (attachment) => {
@@ -102,154 +102,137 @@ const PersonDetailScreen = ({ navigation, route }) => {
     }).format(amount);
   };
 
-  const getBalanceColor = (balance) => {
-    return balance >= 0 ? COLORS.INCOME : COLORS.EXPENSE;
-  };
-
-  const getBalancePrefix = (balance) => {
-    return balance >= 0 ? '+' : '';
-  };
+  const getBalanceColor = (balance) => (balance >= 0 ? COLORS.SUCCESS : COLORS.ERROR);
+  const getBalancePrefix = (balance) => (balance >= 0 ? '+' : '');
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
-      
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{person.name}</Text>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => {
+              Alert.alert(
+                'Person Options',
+                'Choose an action',
+                [
+                  { text: 'Edit', onPress: handleEditPerson },
+                  { text: 'Delete', onPress: handleDeletePerson, style: 'destructive' },
+                  { text: 'Cancel', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Icon name="more-vert" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+        </View>
+        
+        <Text style={styles.headerSubtitle}>
+          {person.notes || 'No notes available'}
+        </Text>
+      </LinearGradient>
+
       <ScrollView
-        style={styles.scrollView}
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>{person.name}</Text>
-          <Text style={styles.subtitle}>
-            {person.notes || 'No notes available'}
-          </Text>
-        </View>
-
-        {/* Summary Cards */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryRow}>
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Total Income</Text>
-              <Text style={[styles.summaryAmount, { color: COLORS.INCOME }]}>
-                +{formatCurrency(person.totalIncome)}
+        {/* Person Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.avatarContainer}>
+            <View style={[styles.avatar, { backgroundColor: COLORS.PRIMARY }]}>
+              <Text style={styles.avatarText}>
+                {person.name.charAt(0).toUpperCase()}
               </Text>
-            </Card>
-            
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Total Expenses</Text>
-              <Text style={[styles.summaryAmount, { color: COLORS.EXPENSE }]}>
-                -{formatCurrency(person.totalExpenses)}
-              </Text>
-            </Card>
+            </View>
           </View>
-          
-          <Card style={[styles.balanceCard, { 
-            backgroundColor: getBalanceColor(person.balance)
-          }]}>
+
+          <View style={styles.balanceSection}>
             <Text style={styles.balanceLabel}>Current Balance</Text>
-            <Text style={styles.balanceAmount}>
-              {getBalancePrefix(person.balance)}{formatCurrency(person.balance)}
+            <Text style={[styles.balanceAmount, { color: getBalanceColor(person.balance) }]}>
+              {getBalancePrefix(person.balance)}
+              {formatCurrency(Math.abs(person.balance))}
             </Text>
-          </Card>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Icon name="trending-up" size={20} color={COLORS.SUCCESS} />
+              <Text style={styles.statValue}>+{formatCurrency(person.totalIncome)}</Text>
+              <Text style={styles.statLabel}>Total Income</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Icon name="trending-down" size={20} color={COLORS.ERROR} />
+              <Text style={styles.statValue}>-{formatCurrency(person.totalExpenses)}</Text>
+              <Text style={styles.statLabel}>Total Expenses</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Icon name="receipt" size={20} color={COLORS.PRIMARY} />
+              <Text style={styles.statValue}>{person.transactionCount}</Text>
+              <Text style={styles.statLabel}>Transactions</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Quick Actions */}
+        {/* Actions */}
         <View style={styles.actionsSection}>
           <CustomButton
             title="Add Transaction"
             onPress={handleAddTransaction}
-            style={styles.addButton}
+            style={styles.addTransactionButton}
           />
-          
-          <View style={styles.actionButtons}>
-            <CustomButton
-              title="Edit Person"
-              onPress={handleEditPerson}
-              variant="outline"
-              style={styles.editButton}
-            />
-            
-            <CustomButton
-              title="Delete Person"
-              onPress={handleDeletePerson}
-              variant="outline"
-              style={styles.deleteButton}
-            />
-          </View>
         </View>
 
         {/* Transactions */}
         <View style={styles.transactionsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              Transactions ({transactions.length})
+              Recent Transactions ({transactions.length})
             </Text>
           </View>
-          
+
           {transactions.length > 0 ? (
-            transactions.map((transaction) => (
-              <TransactionItem
-                key={transaction.id}
-                id={transaction.id}
-                type={transaction.type}
-                amount={transaction.amount}
-                category={transaction.category}
-                notes={transaction.notes}
-                date={transaction.date}
-                personName={person.name}
-                attachment={transaction.attachment}
-                onPress={() => handleTransactionPress(transaction.id)}
-                onAttachmentPress={() => transaction.attachment && handleAttachmentPress(transaction.attachment)}
-              />
-            ))
+            <View style={styles.transactionsList}>
+              {transactions.map((transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  onPress={() => handleTransactionPress(transaction.id)}
+                  onAttachmentPress={handleAttachmentPress}
+                />
+              ))}
+            </View>
           ) : (
-            <Card style={styles.emptyCard}>
-              <Text style={styles.emptyText}>No transactions yet</Text>
-              <Text style={styles.emptySubtext}>
+            <View style={styles.emptyState}>
+              <Icon name="receipt" size={48} color={COLORS.GRAY_400} />
+              <Text style={styles.emptyStateTitle}>No Transactions Yet</Text>
+              <Text style={styles.emptyStateSubtitle}>
                 Start by adding your first transaction with {person.name}
               </Text>
-            </Card>
+            </View>
           )}
         </View>
-
-        {/* Stats */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Transaction Stats</Text>
-          <View style={styles.statsGrid}>
-            <Card style={styles.statCard}>
-              <Text style={styles.statNumber}>{transactions.length}</Text>
-              <Text style={styles.statLabel}>Total Transactions</Text>
-            </Card>
-            
-            <Card style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {transactions.filter(t => t.type === 'income').length}
-              </Text>
-              <Text style={styles.statLabel}>Income Transactions</Text>
-            </Card>
-            
-            <Card style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {transactions.filter(t => t.type === 'expense').length}
-              </Text>
-              <Text style={styles.statLabel}>Expense Transactions</Text>
-            </Card>
-          </View>
-        </View>
       </ScrollView>
-      
-      {/* Image Viewer Modal */}
-      {showImageViewer && selectedAttachment && (
-        <ImageViewer
-          imageUri={selectedAttachment.uri}
-          onClose={() => {
-            setShowImageViewer(false);
-            setSelectedAttachment(null);
-          }}
-        />
-      )}
-    </SafeAreaView>
+
+      <ImageViewer
+        visible={showImageViewer}
+        attachment={selectedAttachment}
+        onClose={() => setShowImageViewer(false)}
+      />
+    </View>
   );
 };
 
@@ -258,142 +241,161 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  scrollView: {
+  header: {
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    color: COLORS.WHITE,
+    flex: 1,
+    textAlign: 'center',
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSubtitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.WHITE,
+    textAlign: 'center',
+    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
+  },
+  content: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.MD,
+    padding: 20,
+    paddingBottom: 32,
   },
-  header: {
-    marginBottom: SPACING.LG,
-  },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
-  },
-  summarySection: {
-    marginBottom: SPACING.XL,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.MD,
-  },
-  summaryCard: {
-    flex: 1,
-    marginHorizontal: SPACING.XS,
+  infoCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
     alignItems: 'center',
-    padding: SPACING.LG,
+    ...SHADOWS.MD,
   },
-  summaryLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.SM,
+  avatarContainer: {
+    marginBottom: 20,
   },
-  summaryAmount: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-  },
-  balanceCard: {
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
-    padding: SPACING.LG,
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    color: COLORS.WHITE,
+  },
+  balanceSection: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   balanceLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.BLACK,
-    marginBottom: SPACING.SM,
+    color: COLORS.TEXT_SECONDARY,
+    marginBottom: 8,
   },
   balanceAmount: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
+    fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.BLACK,
   },
-  actionsSection: {
-    marginBottom: SPACING.XL,
-  },
-  addButton: {
-    marginBottom: SPACING.MD,
-  },
-  actionButtons: {
+  statsRow: {
     flexDirection: 'row',
-    gap: SPACING.MD,
+    gap: 20,
   },
-  editButton: {
-    flex: 1,
+  statItem: {
+    alignItems: 'center',
+    gap: 6,
   },
-  deleteButton: {
-    flex: 1,
-  },
-  transactionsSection: {
-    marginBottom: SPACING.XL,
-  },
-  sectionHeader: {
-    marginBottom: SPACING.MD,
-  },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+  statValue: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
   },
-  emptyCard: {
-    alignItems: 'center',
-    padding: SPACING.XL,
-  },
-  emptyText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.SM,
-  },
-  emptySubtext: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_TERTIARY,
-    textAlign: 'center',
-  },
-  statsSection: {
-    marginBottom: SPACING.XL,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.SM,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: SPACING.LG,
-  },
-  statNumber: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.PRIMARY,
-    marginBottom: SPACING.SM,
-  },
   statLabel: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
+    color: COLORS.TEXT_SECONDARY,
+  },
+  actionsSection: {
+    marginBottom: 24,
+  },
+  addTransactionButton: {
+    borderRadius: 16,
+  },
+  transactionsSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  transactionsList: {
+    gap: 12,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    color: COLORS.TEXT_PRIMARY,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
+    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.XL,
+    padding: 20,
   },
   errorText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.LG,
+    color: COLORS.ERROR,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   errorButton: {
-    minWidth: 120,
+    paddingHorizontal: 32,
   },
 });
 

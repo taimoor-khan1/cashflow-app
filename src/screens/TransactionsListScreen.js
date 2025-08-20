@@ -3,17 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
 import TransactionItem from '../components/TransactionItem';
 import CustomDropdown from '../components/CustomDropdown';
-import Card from '../components/Card';
-import ImageViewer from '../components/ImageViewer';
 
 const TransactionsListScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
@@ -32,9 +31,9 @@ const TransactionsListScreen = ({ navigation }) => {
     // Filter by search text
     if (searchText.trim()) {
       filtered = filtered.filter(transaction => 
-        transaction.notes.toLowerCase().includes(searchText.toLowerCase()) ||
-        transaction.category.toLowerCase().includes(searchText.toLowerCase()) ||
-        transaction.personName.toLowerCase().includes(searchText.toLowerCase())
+        transaction.notes?.toLowerCase().includes(searchText.toLowerCase()) ||
+        transaction.category?.toLowerCase().includes(searchText.toLowerCase()) ||
+        transaction.personName?.toLowerCase().includes(searchText.toLowerCase())
       );
     }
 
@@ -98,186 +97,176 @@ const TransactionsListScreen = ({ navigation }) => {
     setShowImageViewer(true);
   };
 
-  const getTransactionStats = () => {
-    const total = filteredTransactions.length;
-    const income = filteredTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const expenses = filteredTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    return { total, income, expenses };
-  };
-
-  const stats = getTransactionStats();
-
-  const renderTransactionItem = ({ item }) => (
-    <TransactionItem
-      id={item.id}
-      type={item.type}
-      amount={item.amount}
-      category={item.category}
-      notes={item.notes}
-      date={item.date}
-      personName={item.personName}
-      attachment={item.attachment}
-      onPress={() => navigation.navigate('TransactionDetail', { transactionId: item.id })}
-      onAttachmentPress={() => item.attachment && handleAttachmentPress(item.attachment)}
-    />
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Icon name="receipt" size={64} color={COLORS.GRAY_400} />
+      <Text style={styles.emptyStateTitle}>No Transactions Found</Text>
+      <Text style={styles.emptyStateSubtitle}>
+        Try adjusting your filters or add a new transaction
+      </Text>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate('AddTransaction')}
+      >
+        <Icon name="add" size={20} color={COLORS.WHITE} />
+        <Text style={styles.addButtonText}>Add Transaction</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>All Transactions</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddTransaction')}
-        >
-          <Icon name="add" size={24} color={COLORS.WHITE} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statLabel}>Total</Text>
-          <Text style={styles.statValue}>{stats.total}</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statLabel}>Income</Text>
-          <Text style={[styles.statValue, { color: COLORS.INCOME }]}>
-            ${stats.income.toFixed(2)}
-          </Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statLabel}>Expenses</Text>
-          <Text style={[styles.statValue, { color: COLORS.EXPENSE }]}>
-            ${stats.expenses.toFixed(2)}
-          </Text>
-        </Card>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Icon name="search" size={20} color={COLORS.TEXT_SECONDARY} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search transactions..."
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholderTextColor={COLORS.TEXT_TERTIARY}
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchText('')}>
-            <Icon name="close" size={20} color={COLORS.TEXT_SECONDARY} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
-        )}
-      </View>
+          <Text style={styles.headerTitle}>Transactions</Text>
+          <TouchableOpacity
+            style={styles.headerAddButton}
+            onPress={() => navigation.navigate('AddTransaction')}
+          >
+            <Icon name="add" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-      {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
-        <CustomDropdown
-          label="Type"
-          value={selectedType}
-          onValueChange={setSelectedType}
-          items={['', 'income', 'expense']}
-          placeholder="All Types"
-          containerStyle={styles.filterDropdown}
-        />
-        
-        <CustomDropdown
-          label="Category"
-          value={selectedCategory}
-          onValueChange={setSelectedCategory}
-          items={['', ...MOCK_DATA.CATEGORIES]}
-          placeholder="All Categories"
-          containerStyle={styles.filterDropdown}
-        />
-        
-        <CustomDropdown
-          label="Person"
-          value={selectedPerson}
-          onValueChange={setSelectedPerson}
-          items={[{ id: '', name: 'All People' }, ...MOCK_DATA.PERSONS.map(p => ({ id: p.id, name: p.name }))]}
-          placeholder="All People"
-          containerStyle={styles.filterDropdown}
-          displayKey="name"
-          valueKey="id"
-        />
-        
-        <CustomDropdown
-          label="Date Range"
-          value={dateRange}
-          onValueChange={setDateRange}
-          items={[
-            { id: '', name: 'All Time' },
-            { id: '7', name: 'Last 7 days' },
-            { id: '30', name: 'Last 30 days' },
-            { id: '90', name: 'Last 3 months' },
-            { id: '365', name: 'Last year' }
-          ]}
-          placeholder="All Time"
-          containerStyle={styles.filterDropdown}
-          displayKey="name"
-          valueKey="id"
-        />
-        
-        <CustomDropdown
-          label="Sort By"
-          value={sortBy}
-          onValueChange={setSortBy}
-          items={[
-            { id: 'date', name: 'Date' },
-            { id: 'amount', name: 'Amount' },
-            { id: 'category', name: 'Category' },
-            { id: 'person', name: 'Person' }
-          ]}
-          placeholder="Sort By"
-          containerStyle={styles.filterDropdown}
-          displayKey="name"
-          valueKey="id"
-        />
-      </ScrollView>
-
-      {/* Clear Filters Button */}
-      {(selectedType || selectedCategory || selectedPerson || dateRange) && (
-        <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
-          <Icon name="clear" size={16} color={COLORS.PRIMARY} />
-          <Text style={styles.clearFiltersText}>Clear Filters</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Transactions List */}
-      <FlatList
-        data={filteredTransactions}
-        renderItem={renderTransactionItem}
-        keyExtractor={item => item.id.toString()}
-        style={styles.transactionsList}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Icon name="receipt-long" size={64} color={COLORS.TEXT_TERTIARY} />
-            <Text style={styles.emptyStateTitle}>No transactions found</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              Try adjusting your filters or add a new transaction
+      >
+        {/* Search and Filters */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Icon name="search" size={20} color={COLORS.GRAY_500} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search transactions..."
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholderTextColor={COLORS.GRAY_400}
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText('')}>
+                <Icon name="close" size={20} color={COLORS.GRAY_500} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+            {/* Filters */}
+            <View style={styles.filtersContainer}>
+              {/* Row 1 */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
+                <CustomDropdown
+                  label="Type"
+                  value={selectedType}
+                  onValueChange={setSelectedType}
+                  items={['', 'income', 'expense']}
+                  placeholder="All Types"
+                  containerStyle={styles.filterDropdown}
+                />
+                
+                <CustomDropdown
+                  label="Category"
+                  value={selectedCategory}
+                  onValueChange={setSelectedCategory}
+                  items={['', ...MOCK_DATA.CATEGORIES]}
+                  placeholder="All Categories"
+                  containerStyle={styles.filterDropdown}
+                />
+                
+                <CustomDropdown
+                  label="Person"
+                  value={selectedPerson}
+                  onValueChange={setSelectedPerson}
+                  items={[{ id: '', name: 'All People' }, ...MOCK_DATA.PERSONS.map(p => ({ id: p.id, name: p.name }))]}
+                  placeholder="All People"
+                  containerStyle={styles.filterDropdown}
+                  displayKey="name"
+                  valueKey="id"
+                />
+              </ScrollView>
+              
+              {/* Row 2 */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
+                <CustomDropdown
+                  label="Date Range"
+                  value={dateRange}
+                  onValueChange={setDateRange}
+                  items={[
+                    { id: '', name: 'All Time' },
+                    { id: '7', name: 'Last 7 days' },
+                    { id: '30', name: 'Last 30 days' },
+                    { id: '90', name: 'Last 3 months' },
+                    { id: '365', name: 'Last year' }
+                  ]}
+                  placeholder="All Time"
+                  containerStyle={styles.filterDropdown}
+                  displayKey="name"
+                  valueKey="id"
+                />
+                
+                <CustomDropdown
+                  label="Sort By"
+                  value={sortBy}
+                  onValueChange={setSortBy}
+                  items={[
+                    { id: 'date', name: 'Date' },
+                    { id: 'amount', name: 'Amount' },
+                    { id: 'category', name: 'Category' },
+                    { id: 'person', name: 'Person' }
+                  ]}
+                  placeholder="Sort By"
+                  containerStyle={styles.filterDropdown}
+                  displayKey="name"
+                  valueKey="id"
+                />
+              </ScrollView>
+              
+              {/* Clear Filters Button */}
+              {(selectedType || selectedCategory || selectedPerson || dateRange) && (
+                <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
+                  <Icon name="clear" size={16} color={COLORS.PRIMARY} />
+                  <Text style={styles.clearFiltersText}>Clear Filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+        </View>
+
+        {/* Transactions List */}
+        <View style={styles.transactionsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {filteredTransactions.length} Transaction{filteredTransactions.length !== 1 ? 's' : ''}
             </Text>
           </View>
-        }
-      />
-      
-      {/* Image Viewer Modal */}
-      {showImageViewer && selectedAttachment && (
-        <ImageViewer
-          imageUri={selectedAttachment.uri}
-          onClose={() => {
-            setShowImageViewer(false);
-            setSelectedAttachment(null);
-          }}
-        />
-      )}
+
+          {filteredTransactions.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {filteredTransactions.map((transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  onPress={() => navigation.navigate('TransactionDetail', { transactionId: transaction.id })}
+                  onAttachmentPress={handleAttachmentPress}
+                />
+              ))}
+            </View>
+          ) : (
+            renderEmptyState()
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -288,110 +277,144 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
     alignItems: 'center',
-    padding: SPACING.LG,
-    backgroundColor: COLORS.WHITE,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER_LIGHT,
-  },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-  },
-  addButton: {
-    backgroundColor: COLORS.PRIMARY,
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.FULL,
     justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.MD,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    padding: SPACING.MD,
-    gap: SPACING.SM,
-  },
-  statCard: {
-    flex: 1,
-    padding: SPACING.MD,
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.XS,
-  },
-  statValue: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
+    color: COLORS.WHITE,
+  },
+  headerAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  searchSection: {
+    padding: 20,
+    backgroundColor: COLORS.WHITE,
+    margin: 20,
+    borderRadius: 20,
+    ...SHADOWS.MD,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.WHITE,
-    margin: SPACING.MD,
-    paddingHorizontal: SPACING.MD,
-    borderRadius: BORDER_RADIUS.MD,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    ...SHADOWS.SM,
+    backgroundColor: COLORS.GRAY_50,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
   },
   searchIcon: {
-    marginRight: SPACING.SM,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: SPACING.MD,
-    fontSize: TYPOGRAPHY.FONT_SIZE.BASE,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_PRIMARY,
   },
   filtersContainer: {
-    paddingHorizontal: SPACING.MD,
-    marginBottom: SPACING.MD,
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   filterDropdown: {
-    marginRight: SPACING.MD,
-    minWidth: 120,
+    marginRight: 16,
+    minWidth: 140,
   },
   clearFiltersButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.GRAY_100,
+    borderRadius: 12,
+    gap: 6,
     alignSelf: 'center',
-    padding: SPACING.SM,
-    marginBottom: SPACING.MD,
+    marginTop: 8,
   },
   clearFiltersText: {
-    marginLeft: SPACING.XS,
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.PRIMARY,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
   },
+  transactionsSection: {
+    paddingHorizontal: 20,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    color: COLORS.TEXT_PRIMARY,
+  },
   transactionsList: {
-    flex: 1,
-    paddingHorizontal: SPACING.MD,
+    gap: 12,
   },
   emptyState: {
     alignItems: 'center',
-    padding: SPACING.XL,
-    marginTop: SPACING.XL,
+    paddingVertical: 60,
+    paddingHorizontal: 20,
   },
   emptyStateTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginTop: SPACING.MD,
-    marginBottom: SPACING.SM,
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
+    marginBottom: 24,
     lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.PRIMARY,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 8,
+  },
+  addButtonText: {
+    color: COLORS.WHITE,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
   },
 });
 

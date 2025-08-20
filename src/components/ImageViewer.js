@@ -6,29 +6,39 @@ import {
   Dimensions,
   TouchableOpacity,
   StatusBar,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS, SPACING } from '../constants';
 
 const { width, height } = Dimensions.get('window');
 
-const ImageViewer = ({ imageUri, onClose }) => {
+const ImageViewer = ({ visible, attachment, onClose }) => {
+  if (!visible || !attachment) return null;
+
   return (
-    <View style={styles.container}>
-      <StatusBar hidden />
-      
-      {/* Close button */}
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Icon name="close" size={28} color={COLORS.WHITE} />
-      </TouchableOpacity>
-      
-      {/* Image */}
-      <Image
-        source={{ uri: imageUri }}
-        style={styles.image}
-        resizeMode="contain"
-      />
-    </View>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.container}>
+        <StatusBar hidden />
+        
+        {/* Close button */}
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Icon name="close" size={28} color={COLORS.WHITE} />
+        </TouchableOpacity>
+        
+        {/* Image */}
+        <Image
+          source={{ uri: attachment.uri }}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      </View>
+    </Modal>
   );
 };
 
@@ -44,7 +54,7 @@ const styles = StyleSheet.create({
     top: SPACING.XL + 20,
     right: SPACING.LG,
     zIndex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.OVERLAY,
     borderRadius: 20,
     padding: SPACING.SM,
   },

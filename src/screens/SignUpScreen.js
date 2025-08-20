@@ -7,8 +7,9 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, APP_CONFIG } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
@@ -80,8 +81,14 @@ const SignUpScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.gradientBackground}
+      />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -93,7 +100,9 @@ const SignUpScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.logo}>💰</Text>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logo}>💰</Text>
+            </View>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
               Join {APP_CONFIG.APP_NAME} to start managing your cash flow
@@ -106,7 +115,6 @@ const SignUpScreen = ({ navigation }) => {
               placeholder="Enter your full name"
               value={formData.fullName}
               onChangeText={(value) => updateFormData('fullName', value)}
-              autoCapitalize="words"
               error={errors.fullName}
             />
 
@@ -145,31 +153,17 @@ const SignUpScreen = ({ navigation }) => {
               loading={loading}
               style={styles.signUpButton}
             />
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <CustomButton
-              title="Already have an account? Sign In"
-              onPress={handleLogin}
-              variant="outline"
-              style={styles.loginButton}
-            />
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              By creating an account, you agree to our{' '}
-              <Text style={styles.link}>Terms of Service</Text> and{' '}
-              <Text style={styles.link}>Privacy Policy</Text>
-            </Text>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={handleLogin}>
+              <Text style={styles.loginText}>Sign In</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -178,73 +172,78 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.XL,
+    paddingTop: SPACING['3XL'],
+    paddingBottom: SPACING.XL,
   },
   header: {
     alignItems: 'center',
-    marginBottom: SPACING.XL,
-    marginTop: SPACING.LG,
+    marginBottom: SPACING['2XL'],
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.LG,
   },
   logo: {
-    fontSize: 60,
-    marginBottom: SPACING.LG,
+    fontSize: 40,
   },
   title: {
     fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
+    color: COLORS.WHITE,
     marginBottom: SPACING.SM,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.LG,
+    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   form: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 24,
+    padding: SPACING.XL,
     marginBottom: SPACING.XL,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   signUpButton: {
     marginTop: SPACING.LG,
-    marginBottom: SPACING.LG,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.LG,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.BORDER,
-  },
-  dividerText: {
-    marginHorizontal: SPACING.MD,
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_TERTIARY,
-  },
-  loginButton: {
-    marginBottom: SPACING.LG,
   },
   footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: SPACING.LG,
   },
   footerText: {
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_TERTIARY,
-    textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.SM,
   },
-  link: {
-    color: COLORS.PRIMARY,
+  loginText: {
+    color: COLORS.WHITE,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     textDecorationLine: 'underline',
   },
 });

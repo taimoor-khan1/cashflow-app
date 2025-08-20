@@ -12,7 +12,8 @@ import {
   PermissionsAndroid,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, MOCK_DATA } from '../constants';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, MOCK_DATA, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomDropdown from '../components/CustomDropdown';
 import CustomButton from '../components/CustomButton';
@@ -99,255 +100,228 @@ const AddTransactionScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleTypeToggle = () => {
-    const newType = formData.type === 'income' ? 'expense' : 'income';
-    setFormData(prev => ({ ...prev, type: newType }));
-  };
-
-  const handleDateChange = (date) => {
-    const formattedDate = formatDateForInput(date);
-    setFormData(prev => ({ ...prev, date: formattedDate }));
-  };
-
-  const requestCameraPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'App needs camera permission to take photos',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
+  const handleImagePicker = async (type) => {
+    try {
+      let result;
+      
+      if (type === 'camera') {
+        result = await launchCamera({
+          mediaType: 'photo',
+          quality: 0.8,
+        });
+      } else {
+        result = await launchImageLibrary({
+          mediaType: 'photo',
+          quality: 0.8,
+        });
       }
+
+      if (result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        handleInputChange('attachment', {
+          uri: asset.uri,
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || 'attachment.jpg',
+        });
+      }
+    } catch (error) {
+      console.log('Image picker error:', error);
     }
-    return true;
-  };
-
-  const handleImagePicker = () => {
-    Alert.alert(
-      'Add Attachment',
-      'Choose an option',
-      [
-        {
-          text: 'Camera',
-          onPress: async () => {
-            const hasPermission = await requestCameraPermission();
-            if (!hasPermission) {
-              Alert.alert('Permission Denied', 'Camera permission is required to take photos');
-              return;
-            }
-
-            const options = {
-              mediaType: 'photo',
-              quality: 0.8,
-              includeBase64: false,
-              saveToPhotos: false,
-            };
-
-            launchCamera(options, (response) => {
-              if (response.didCancel) {
-                return;
-              }
-              if (response.error) {
-                Alert.alert('Error', 'Failed to take photo');
-                return;
-              }
-              if (response.assets && response.assets[0]) {
-                const asset = response.assets[0];
-                setFormData(prev => ({
-                  ...prev,
-                  attachment: {
-                    uri: asset.uri,
-                    type: asset.type || 'image/jpeg',
-                    name: asset.fileName || 'camera_photo.jpg',
-                  },
-                }));
-              }
-            });
-          },
-        },
-        {
-          text: 'Photo Library',
-          onPress: () => {
-            const options = {
-              mediaType: 'photo',
-              quality: 0.8,
-              includeBase64: false,
-              selectionLimit: 1,
-            };
-
-            launchImageLibrary(options, (response) => {
-              if (response.didCancel) {
-                return;
-              }
-              if (response.error) {
-                Alert.alert('Error', 'Failed to select photo');
-                return;
-              }
-              if (response.assets && response.assets[0]) {
-                const asset = response.assets[0];
-                setFormData(prev => ({
-                  ...prev,
-                  attachment: {
-                    uri: asset.uri,
-                    type: asset.type || 'image/jpeg',
-                    name: asset.fileName || 'selected_photo.jpg',
-                  },
-                }));
-              }
-            });
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
   };
 
   const removeAttachment = () => {
-    setFormData(prev => ({ ...prev, attachment: null }));
+    handleInputChange('attachment', null);
+  };
+
+  const openImageViewer = () => {
+    if (formData.attachment) {
+      setShowImageViewer(true);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Add Transaction</Text>
-          {person && (
-            <Text style={styles.subtitle}>
-              Adding transaction for {person.name}
-            </Text>
-          )}
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Transaction</Text>
+          <View style={styles.placeholder} />
         </View>
+        
+        <Text style={styles.headerSubtitle}>
+          Record a new financial transaction
+        </Text>
+      </LinearGradient>
 
-        <View style={styles.form}>
-          {/* Transaction Type Toggle */}
-          <View style={styles.typeToggleContainer}>
-            <Text style={styles.typeLabel}>Transaction Type</Text>
-            <View style={styles.typeToggle}>
-              <CustomButton
-                title="Income"
-                variant={formData.type === 'income' ? 'primary' : 'outline'}
-                size="small"
-                onPress={() => handleTypeToggle()}
-                style={styles.typeButton}
-              />
-              <CustomButton
-                title="Expense"
-                variant={formData.type === 'expense' ? 'primary' : 'outline'}
-                size="small"
-                onPress={() => handleTypeToggle()}
-                style={styles.typeButton}
-              />
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.form}>
+            {/* Transaction Type */}
+            <View style={styles.typeSelector}>
+              <Text style={styles.sectionLabel}>Transaction Type</Text>
+              <View style={styles.typeButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    formData.type === 'expense' && styles.typeButtonActive
+                  ]}
+                  onPress={() => handleInputChange('type', 'expense')}
+                >
+                  <Icon 
+                    name="trending-down" 
+                    size={20} 
+                    color={formData.type === 'expense' ? COLORS.WHITE : COLORS.ERROR} 
+                  />
+                  <Text style={[
+                    styles.typeButtonText,
+                    formData.type === 'expense' && styles.typeButtonTextActive
+                  ]}>
+                    Expense
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    formData.type === 'income' && styles.typeButtonActive
+                  ]}
+                  onPress={() => handleInputChange('type', 'income')}
+                >
+                  <Icon 
+                    name="trending-up" 
+                    size={20} 
+                    color={formData.type === 'income' ? COLORS.WHITE : COLORS.SUCCESS} 
+                  />
+                  <Text style={[
+                    styles.typeButtonText,
+                    formData.type === 'income' && styles.typeButtonTextActive
+                  ]}>
+                    Income
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <CustomInput
-            label="Amount"
-            value={formData.amount}
-            onChangeText={(value) => handleInputChange('amount', value)}
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            error={errors.amount}
-          />
+            {/* Person Selection */}
+            <CustomDropdown
+              label="Person"
+              value={formData.personId}
+              onValueChange={(value) => handleInputChange('personId', value)}
+              items={MOCK_DATA.PERSONS.map(person => ({
+                label: person.name,
+                value: person.id
+              }))}
+              placeholder="Select a person"
+              error={errors.personId}
+            />
 
-          <CustomDropdown
-            label="Person"
-            value={formData.personId}
-            onValueChange={(value) => handleInputChange('personId', value)}
-            items={MOCK_DATA.PERSONS.map(p => ({ id: p.id, name: p.name }))}
-            placeholder="Select a person"
-            searchable={true}
-            error={errors.personId}
-            displayKey="name"
-            valueKey="id"
-          />
+            {/* Amount */}
+            <CustomInput
+              label="Amount"
+              value={formData.amount}
+              onChangeText={(value) => handleInputChange('amount', value)}
+              placeholder="Enter amount"
+              keyboardType="numeric"
+              error={errors.amount}
+            />
 
-          <CustomDropdown
-            label="Category"
-            value={formData.category}
-            onValueChange={(value) => handleInputChange('category', value)}
-            items={MOCK_DATA.CATEGORIES}
-            placeholder="Select a category"
-            searchable={true}
-            error={errors.category}
-          />
+            {/* Category */}
+            <CustomDropdown
+              label="Category"
+              value={formData.category}
+              onValueChange={(value) => handleInputChange('category', value)}
+              items={MOCK_DATA.CATEGORIES.map(category => ({
+                label: category,
+                value: category
+              }))}
+              placeholder="Select category"
+              error={errors.category}
+            />
 
-          <CustomInput
-            label="Notes (Optional)"
-            value={formData.notes}
-            onChangeText={(value) => handleInputChange('notes', value)}
-            placeholder="Add any notes about this transaction"
-            multiline
-            numberOfLines={3}
-            autoCapitalize="sentences"
-          />
+            {/* Date */}
+            <DatePicker
+              label="Date"
+              value={formData.date}
+              onDateChange={(date) => handleInputChange('date', formatDateForInput(date))}
+              error={errors.date}
+            />
 
-          <DatePicker
-            label="Date"
-            value={formData.date}
-            onDateChange={handleDateChange}
-            placeholder="Select Date"
-            maximumDate={new Date()}
-            error={errors.date}
-          />
+            {/* Notes */}
+            <CustomInput
+              label="Notes (Optional)"
+              value={formData.notes}
+              onChangeText={(value) => handleInputChange('notes', value)}
+              placeholder="Add any notes about this transaction"
+              multiline
+              numberOfLines={3}
+              error={errors.notes}
+            />
 
-          {/* Attachment Section */}
-          <View style={styles.attachmentContainer}>
-            <Text style={styles.attachmentLabel}>Attachment (Optional)</Text>
-            {formData.attachment ? (
-              <View style={styles.attachmentPreview}>
-                <Image source={{ uri: formData.attachment.uri }} style={styles.attachmentImage} />
-                <View style={styles.attachmentActions}>
+            {/* Attachment */}
+            <View style={styles.attachmentSection}>
+              <Text style={styles.sectionLabel}>Attachment (Optional)</Text>
+              
+              {formData.attachment ? (
+                <View style={styles.attachmentPreview}>
+                  <Image 
+                    source={{ uri: formData.attachment.uri }} 
+                    style={styles.attachmentImage} 
+                  />
+                  <View style={styles.attachmentActions}>
+                    <TouchableOpacity
+                      style={styles.attachmentButton}
+                      onPress={openImageViewer}
+                    >
+                      <Icon name="visibility" size={20} color={COLORS.PRIMARY} />
+                      <Text style={styles.attachmentButtonText}>View</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.attachmentButton, styles.removeButton]}
+                      onPress={removeAttachment}
+                    >
+                      <Icon name="delete" size={20} color={COLORS.ERROR} />
+                      <Text style={[styles.attachmentButtonText, styles.removeButtonText]}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.attachmentButtons}>
                   <TouchableOpacity
-                    style={styles.attachmentActionButton}
-                    onPress={() => setShowImageViewer(true)}
+                    style={styles.attachmentButton}
+                    onPress={() => handleImagePicker('camera')}
                   >
-                    <Icon name="visibility" size={20} color={COLORS.PRIMARY} />
-                    <Text style={styles.attachmentActionText}>View</Text>
+                    <Icon name="camera-alt" size={20} color={COLORS.PRIMARY} />
+                    <Text style={styles.attachmentButtonText}>Take Photo</Text>
                   </TouchableOpacity>
+                  
                   <TouchableOpacity
-                    style={styles.attachmentActionButton}
-                    onPress={removeAttachment}
+                    style={styles.attachmentButton}
+                    onPress={() => handleImagePicker('library')}
                   >
-                    <Icon name="delete" size={20} color={COLORS.ERROR} />
-                    <Text style={styles.attachmentActionText}>Remove</Text>
+                    <Icon name="photo-library" size={20} color={COLORS.PRIMARY} />
+                    <Text style={styles.attachmentButtonText}>Choose Photo</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.addAttachmentButton} onPress={handleImagePicker}>
-                <Icon name="add-photo-alternate" size={32} color={COLORS.PRIMARY} />
-                <Text style={styles.addAttachmentText}>Add Receipt or Photo</Text>
-                <Text style={styles.addAttachmentSubtext}>Tap to add an attachment</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              )}
+            </View>
 
-          <View style={styles.buttonContainer}>
-            <CustomButton
-              title="Cancel"
-              onPress={() => navigation.goBack()}
-              variant="outline"
-              style={styles.cancelButton}
-            />
+            {/* Submit Button */}
             <CustomButton
               title="Add Transaction"
               onPress={handleSubmit}
@@ -355,20 +329,15 @@ const AddTransactionScreen = ({ navigation, route }) => {
               style={styles.submitButton}
             />
           </View>
-        </View>
-      </ScrollView>
-      
-      {/* Image Viewer Modal */}
-      {showImageViewer && formData.attachment && (
-        <ImageViewer
-          imageUri={formData.attachment.uri}
-          onClose={() => setShowImageViewer(false)}
-        />
-      )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      {/* Date Picker Modal */}
-      {/* The DateTimePicker component is not imported, so this block is removed. */}
-    </KeyboardAvoidingView>
+      <ImageViewer
+        visible={showImageViewer}
+        attachment={formData.attachment}
+        onClose={() => setShowImageViewer(false)}
+      />
+    </View>
   );
 };
 
@@ -377,120 +346,142 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: SPACING.XL,
-  },
   header: {
-    padding: SPACING.MD,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  title: {
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-    textAlign: 'center',
+    color: COLORS.WHITE,
   },
-  subtitle: {
+  placeholder: {
+    width: 40,
+  },
+  headerSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.SEMI_TRANSPARENT_WHITE,
     textAlign: 'center',
     lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
   form: {
-    padding: SPACING.MD,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    ...SHADOWS.MD,
   },
-  typeToggleContainer: {
-    marginBottom: SPACING.MD,
+  typeSelector: {
+    marginBottom: 20,
   },
-  typeLabel: {
+  sectionLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    marginBottom: 12,
   },
-  typeToggle: {
+  typeButtons: {
     flexDirection: 'row',
-    gap: SPACING.SM,
+    gap: 12,
   },
   typeButton: {
-    flex: 1,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: SPACING.MD,
-    marginTop: SPACING.LG,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  submitButton: {
-    flex: 2,
-  },
-  attachmentContainer: {
-    marginBottom: SPACING.MD,
-  },
-  attachmentLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.SM,
-  },
-  addAttachmentButton: {
-    borderWidth: 2,
-    borderColor: COLORS.BORDER,
-    borderStyle: 'dashed',
-    borderRadius: BORDER_RADIUS.MD,
-    padding: SPACING.LG,
-    alignItems: 'center',
-    backgroundColor: COLORS.GRAY_50,
-  },
-  addAttachmentText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    color: COLORS.PRIMARY,
-    marginTop: SPACING.SM,
-    marginBottom: SPACING.XS,
-  },
-  addAttachmentSubtext: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
-    color: COLORS.TEXT_SECONDARY,
-    textAlign: 'center',
-  },
-  attachmentPreview: {
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    borderRadius: BORDER_RADIUS.MD,
-    overflow: 'hidden',
-    backgroundColor: COLORS.WHITE,
-  },
-  attachmentImage: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  attachmentActions: {
-    flexDirection: 'row',
-    padding: SPACING.SM,
-    gap: SPACING.SM,
-  },
-  attachmentActionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING.SM,
-    borderRadius: BORDER_RADIUS.SM,
-    backgroundColor: COLORS.GRAY_100,
-    gap: SPACING.XS,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+    backgroundColor: COLORS.WHITE,
+    gap: 8,
   },
-  attachmentActionText: {
+  typeButtonActive: {
+    backgroundColor: COLORS.ERROR,
+    borderColor: COLORS.ERROR,
+  },
+  typeButtonText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  typeButtonTextActive: {
+    color: COLORS.WHITE,
+  },
+  attachmentSection: {
+    marginBottom: 20,
+  },
+  attachmentButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  attachmentButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+    backgroundColor: COLORS.WHITE,
+    gap: 8,
+  },
+  removeButton: {
+    borderColor: COLORS.ERROR,
+  },
+  attachmentButtonText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  removeButtonText: {
+    color: COLORS.ERROR,
+  },
+  attachmentPreview: {
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: COLORS.GRAY_50,
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  attachmentActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  submitButton: {
+    marginTop: 16,
   },
 });
 

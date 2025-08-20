@@ -33,60 +33,86 @@ export const NAVIGATION = {
   MAIN_TABS: 'MainTabs',
 };
 
-// Colors
+// Colors - Light Blue Theme
 export const COLORS = {
-  // Primary Colors
-  PRIMARY: '#007AFF',
-  PRIMARY_DARK: '#0056CC',
-  PRIMARY_LIGHT: '#4DA3FF',
+  // Primary Colors - Light Blue Theme
+  PRIMARY: '#3B82F6',
+  PRIMARY_DARK: '#1D4ED8',
+  PRIMARY_LIGHT: '#60A5FA',
   
-  // Secondary Colors
-  SECONDARY: '#34C759',
-  SECONDARY_DARK: '#28A745',
-  SECONDARY_LIGHT: '#5CDB95',
+  // Secondary Colors - Blue Theme
+  SECONDARY: '#0EA5E9',
+  SECONDARY_DARK: '#0369A1',
+  SECONDARY_LIGHT: '#38BDF8',
   
   // Accent Colors
-  ACCENT: '#FF9500',
-  ACCENT_DARK: '#E6850E',
-  ACCENT_LIGHT: '#FFB340',
+  ACCENT: '#059669',
+  ACCENT_DARK: '#047857',
+  ACCENT_LIGHT: '#10B981',
   
   // Success/Error Colors
-  SUCCESS: '#34C759',
-  ERROR: '#FF3B30',
-  WARNING: '#FF9500',
+  SUCCESS: '#10B981',
+  ERROR: '#EF4444',
+  WARNING: '#F59E0B',
   
   // Neutral Colors
   WHITE: '#FFFFFF',
   BLACK: '#000000',
-  GRAY_50: '#F9F9F9',
-  GRAY_100: '#F2F2F7',
-  GRAY_200: '#E5E5EA',
-  GRAY_300: '#D1D1D6',
-  GRAY_400: '#C7C7CC',
-  GRAY_500: '#AEAEB2',
-  GRAY_600: '#8E8E93',
-  GRAY_700: '#636366',
-  GRAY_800: '#48484A',
-  GRAY_900: '#1C1C1E',
+  GRAY_50: '#F8FAFC',
+  GRAY_100: '#F1F5F9',
+  GRAY_200: '#E2E8F0',
+  GRAY_300: '#CBD5E1',
+  GRAY_400: '#94A3B8',
+  GRAY_500: '#64748B',
+  GRAY_600: '#475569',
+  GRAY_700: '#334155',
+  GRAY_800: '#1E293B',
+  GRAY_900: '#0F172A',
   
   // Background Colors
-  BACKGROUND: '#F9F9F9',
+  BACKGROUND: '#F8FAFC',
   CARD_BACKGROUND: '#FFFFFF',
   SURFACE: '#FFFFFF',
   
   // Text Colors
-  TEXT_PRIMARY: '#1C1C1E',
-  TEXT_SECONDARY: '#636366',
-  TEXT_TERTIARY: '#8E8E93',
+  TEXT_PRIMARY: '#111827',
+  TEXT_SECONDARY: '#6B7280',
+  TEXT_TERTIARY: '#9CA3AF',
   TEXT_INVERSE: '#FFFFFF',
   
   // Border Colors
-  BORDER: '#E5E5EA',
-  BORDER_LIGHT: '#F2F2F7',
+  BORDER: '#E2E8F0',
+  BORDER_LIGHT: '#F1F5F9',
   
   // Income/Expense Colors
-  INCOME: '#34C759',
-  EXPENSE: '#FF3B30',
+  INCOME: '#10B981',
+  EXPENSE: '#EF4444',
+  
+  // Gradient Colors - Light Blue Theme
+  GRADIENT_PRIMARY: ['#3B82F6', '#0EA5E9'],
+  GRADIENT_SECONDARY: ['#60A5FA', '#38BDF8'],
+  GRADIENT_SUCCESS: ['#059669', '#10B981'],
+  GRADIENT_ERROR: ['#DC2626', '#EF4444'],
+  GRADIENT_WARNING: ['#D97706', '#F59E0B'],
+  
+  // Additional UI Colors
+  OVERLAY: 'rgba(0, 0, 0, 0.5)',
+  TRANSPARENT: 'transparent',
+  SEMI_TRANSPARENT_WHITE: 'rgba(255, 255, 255, 0.2)',
+  SEMI_TRANSPARENT_BLACK: 'rgba(0, 0, 0, 0.1)',
+  
+  // Status Colors
+  INFO: '#3B82F6',
+  INFO_LIGHT: '#DBEAFE',
+  SUCCESS_LIGHT: '#D1FAE5',
+  ERROR_LIGHT: '#FEE2E2',
+  WARNING_LIGHT: '#FEF3C7',
+  
+  // Chart Colors
+  CHART_COLORS: [
+    '#3B82F6', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444',
+    '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316'
+  ],
 };
 
 // Typography
@@ -108,9 +134,9 @@ export const TYPOGRAPHY = {
     '4XL': 36,
   },
   LINE_HEIGHT: {
-    TIGHT: 1.25,
-    NORMAL: 1.5,
-    RELAXED: 1.75,
+    TIGHT: 15,
+    NORMAL: 20,
+    RELAXED: 30,
   },
   FONT_WEIGHT: {
     NORMAL: '400',
@@ -153,16 +179,23 @@ export const SHADOWS = {
   MD: {
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 5,
+    elevation: 2,
   },
   LG: {
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  XL: {
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
 };
 
@@ -299,12 +332,12 @@ export const MOCK_DATA = {
   ],
   CHART_DATA: {
     monthlyCashFlow: [
-      { month: 'Jan', income: 2500, expenses: 1200 },
-      { month: 'Feb', income: 3000, expenses: 1800 },
-      { month: 'Mar', income: 2800, expenses: 1600 },
-      { month: 'Apr', income: 3200, expenses: 2000 },
-      { month: 'May', income: 2900, expenses: 1700 },
-      { month: 'Jun', income: 3500, expenses: 2200 },
+      { category: 'Jan', value: 1300 },
+      { category: 'Feb', value: 1200 },
+      { category: 'Mar', value: 1200 },
+      { category: 'Apr', value: 1200 },
+      { category: 'May', value: 1200 },
+      { category: 'Jun', value: 1300 },
     ],
     categoryBreakdown: [
       { category: 'Payment', value: 45 },

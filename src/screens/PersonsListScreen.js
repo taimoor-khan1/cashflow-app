@@ -7,8 +7,9 @@ import {
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA } from '../constants';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
 import PersonItem from '../components/PersonItem';
 import CustomButton from '../components/CustomButton';
 
@@ -28,38 +29,61 @@ const PersonsListScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      <View style={styles.header}>
-        <Text style={styles.title}>Person Accounts</Text>
-        <Text style={styles.subtitle}>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Person Accounts</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddPerson}
+          >
+            <Icon name="person-add" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+        </View>
+        
+        <Text style={styles.headerSubtitle}>
           Manage your cash flow with friends, clients, and partners
         </Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView
-        style={styles.scrollView}
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {MOCK_DATA.PERSONS.length > 0 ? (
-          MOCK_DATA.PERSONS.map((person) => (
-            <PersonItem
-              key={person.id}
-              id={person.id}
-              name={person.name}
-              notes={person.notes}
-              balance={person.balance}
-              totalIncome={person.totalIncome}
-              totalExpenses={person.totalExpenses}
-              transactionCount={person.transactionCount}
-              onPress={() => handlePersonPress(person.id)}
-            />
-          ))
+          <View style={styles.personsList}>
+            {MOCK_DATA.PERSONS.map((person) => (
+              <PersonItem
+                key={person.id}
+                id={person.id}
+                name={person.name}
+                notes={person.notes}
+                balance={person.balance}
+                totalIncome={person.totalIncome}
+                totalExpenses={person.totalExpenses}
+                transactionCount={person.transactionCount}
+                onPress={() => handlePersonPress(person.id)}
+              />
+            ))}
+          </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>👥</Text>
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyIcon}>👥</Text>
+            </View>
             <Text style={styles.emptyTitle}>No Person Accounts Yet</Text>
             <Text style={styles.emptySubtitle}>
               Start by adding your first person account to track cash flow
@@ -71,31 +95,20 @@ const PersonsListScreen = ({ navigation }) => {
             />
           </View>
         )}
+
+        {/* Quick Action Button */}
+        {MOCK_DATA.PERSONS.length > 0 && (
+          <View style={styles.quickActionContainer}>
+            <CustomButton
+              title="Add Transaction"
+              onPress={handleAddTransaction}
+              variant="secondary"
+              style={styles.quickActionButton}
+            />
+          </View>
+        )}
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleAddPerson}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Action Button */}
-      {MOCK_DATA.PERSONS.length > 0 && (
-        <View style={styles.quickActionContainer}>
-          <CustomButton
-            title="Add Transaction"
-            onPress={handleAddTransaction}
-            variant="secondary"
-            style={styles.quickActionButton}
-          />
-        </View>
-      )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -105,91 +118,95 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.MD,
-    backgroundColor: COLORS.WHITE,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER_LIGHT,
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    color: COLORS.WHITE,
   },
-  subtitle: {
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.SM,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    // lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
-  scrollView: {
+  content: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.MD,
-    paddingBottom: SPACING.XL * 2, // Extra padding for FAB
+    padding: 20,
+    paddingBottom: 32,
+  },
+  personsList: {
+    gap: 16,
   },
   emptyState: {
     alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.GRAY_100,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.XL * 2,
+    marginBottom: 24,
   },
   emptyIcon: {
-    fontSize: 60,
-    marginBottom: SPACING.LG,
+    fontSize: 40,
   },
   emptyTitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.SM,
+    marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.LG,
-    marginBottom: SPACING.XL,
-    maxWidth: 300,
+    marginBottom: 32,
+    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   emptyButton: {
-    width: 200,
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: SPACING.XL,
-    right: SPACING.LG,
-    zIndex: 1000,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.PRIMARY,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  fabIcon: {
-    fontSize: 32,
-    color: COLORS.WHITE,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    paddingHorizontal: 32,
   },
   quickActionContainer: {
-    position: 'absolute',
-    bottom: SPACING.XL,
-    left: SPACING.LG,
-    right: SPACING.LG,
-    zIndex: 999,
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
   quickActionButton: {
-    width: '100%',
+    borderRadius: 16,
   },
 });
 

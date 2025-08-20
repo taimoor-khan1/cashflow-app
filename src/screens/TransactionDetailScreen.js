@@ -9,10 +9,9 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA } from '../constants';
-import Card from '../components/Card';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
 import CustomButton from '../components/CustomButton';
 import ImageViewer from '../components/ImageViewer';
 
@@ -37,7 +36,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
 
   if (!transaction) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Transaction not found</Text>
           <CustomButton
@@ -46,7 +45,7 @@ const TransactionDetailScreen = ({ navigation, route }) => {
             style={styles.errorButton}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -99,112 +98,138 @@ const TransactionDetailScreen = ({ navigation, route }) => {
     });
   };
 
-  const getTypeColor = (type) => {
-    return type === 'income' ? COLORS.INCOME : COLORS.EXPENSE;
-  };
-
-  const getTypeIcon = (type) => {
+  const getTransactionIcon = (type) => {
     return type === 'income' ? 'trending-up' : 'trending-down';
   };
 
+  const getTransactionColor = (type) => {
+    return type === 'income' ? COLORS.SUCCESS : COLORS.ERROR;
+  };
+
+  const getTransactionPrefix = (type) => {
+    return type === 'income' ? '+' : '-';
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
-      
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Transaction Details</Text>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => {
+              Alert.alert(
+                'Transaction Options',
+                'Choose an action',
+                [
+                  { text: 'Edit', onPress: handleEditTransaction },
+                  { text: 'Delete', onPress: handleDeleteTransaction, style: 'destructive' },
+                  { text: 'Cancel', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Icon name="more-vert" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
       <ScrollView
-        style={styles.scrollView}
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Transaction Details</Text>
-          <Text style={styles.subtitle}>
-            {transaction.notes}
-          </Text>
-        </View>
-
-        {/* Transaction Type Card */}
-        <Card style={styles.typeCard}>
-          <View style={styles.typeHeader}>
+        {/* Transaction Summary Card */}
+        <View style={styles.summaryCard}>
+          <View style={[
+            styles.iconContainer,
+            { backgroundColor: getTransactionColor(transaction.type) === COLORS.SUCCESS ? COLORS.SUCCESS_LIGHT : COLORS.ERROR_LIGHT }
+          ]}>
             <Icon 
-              name={getTypeIcon(transaction.type)} 
-              size={24} 
-              color={getTypeColor(transaction.type)} 
+              name={getTransactionIcon(transaction.type)} 
+              size={32} 
+              color={getTransactionColor(transaction.type)} 
             />
-            <Text style={[styles.typeText, { color: getTypeColor(transaction.type) }]}>
-              {transaction.type.toUpperCase()}
-            </Text>
           </View>
-          <Text style={[styles.amount, { color: getTypeColor(transaction.type) }]}>
-            {transaction.type === 'income' ? '+' : '-'}
+          
+          <Text style={styles.transactionType}>
+            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+          </Text>
+          
+          <Text style={[
+            styles.amount,
+            { color: getTransactionColor(transaction.type) }
+          ]}>
+            {getTransactionPrefix(transaction.type)}
             {formatCurrency(transaction.amount)}
           </Text>
-        </Card>
+          
+          <Text style={styles.category}>{transaction.category}</Text>
+        </View>
 
         {/* Transaction Details */}
-        <Card style={styles.detailsCard}>
+        <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Transaction Details</Text>
           
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Category</Text>
-            <Text style={styles.detailValue}>{transaction.category}</Text>
+            <Icon name="person" size={20} color={COLORS.PRIMARY} />
+            <Text style={styles.detailLabel}>Person</Text>
+            <Text style={styles.detailValue}>{person?.name || 'Unknown'}</Text>
           </View>
           
           <View style={styles.detailRow}>
+            <Icon name="event" size={20} color={COLORS.PRIMARY} />
             <Text style={styles.detailLabel}>Date</Text>
             <Text style={styles.detailValue}>{formatDate(transaction.date)}</Text>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Notes</Text>
-            <Text style={styles.detailValue}>{transaction.notes}</Text>
-          </View>
-        </Card>
+          {transaction.notes && (
+            <View style={styles.detailRow}>
+              <Icon name="note" size={20} color={COLORS.PRIMARY} />
+              <Text style={styles.detailLabel}>Notes</Text>
+              <Text style={styles.detailValue}>{transaction.notes}</Text>
+            </View>
+          )}
+        </View>
 
-        {/* Person Details */}
-        {person && (
-          <Card style={styles.personCard}>
-            <Text style={styles.sectionTitle}>Person</Text>
-            <TouchableOpacity 
-              style={styles.personRow}
-              onPress={() => navigation.navigate('PersonDetail', { personId: person.id })}
-            >
-              <View style={styles.personInfo}>
-                <Text style={styles.personName}>{person.name}</Text>
-                <Text style={styles.personBalance}>
-                  Balance: {formatCurrency(person.balance)}
-                </Text>
-              </View>
-              <Icon name="chevron-right" size={24} color={COLORS.TEXT_TERTIARY} />
-            </TouchableOpacity>
-          </Card>
-        )}
-
-        {/* Attachment */}
+        {/* Attachment Section */}
         {transaction.attachment && (
-          <Card style={styles.attachmentCard}>
+          <View style={styles.attachmentCard}>
             <Text style={styles.sectionTitle}>Attachment</Text>
-            <TouchableOpacity 
-              style={styles.attachmentRow}
+            
+            <TouchableOpacity
+              style={styles.attachmentPreview}
               onPress={handleAttachmentPress}
+              activeOpacity={0.8}
             >
               <Image 
                 source={{ uri: transaction.attachment.uri }} 
-                style={styles.attachmentThumbnail}
-                resizeMode="cover"
+                style={styles.attachmentImage} 
               />
-              <View style={styles.attachmentInfo}>
-                <Text style={styles.attachmentName}>{transaction.attachment.name}</Text>
-                <Text style={styles.attachmentType}>{transaction.attachment.type}</Text>
+              <View style={styles.attachmentOverlay}>
+                <Icon name="visibility" size={24} color={COLORS.WHITE} />
+                <Text style={styles.attachmentText}>Tap to view</Text>
               </View>
-              <Icon name="open-in-new" size={24} color={COLORS.PRIMARY} />
             </TouchableOpacity>
-          </Card>
+            
+            <Text style={styles.attachmentName}>{transaction.attachment.name}</Text>
+          </View>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
+        {/* Actions */}
+        <View style={styles.actionsSection}>
           <CustomButton
             title="Edit Transaction"
             onPress={handleEditTransaction}
@@ -221,15 +246,12 @@ const TransactionDetailScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
-      {/* Image Viewer Modal */}
-      {showImageViewer && selectedAttachment && (
-        <ImageViewer
-          visible={showImageViewer}
-          image={selectedAttachment}
-          onClose={() => setShowImageViewer(false)}
-        />
-      )}
-    </SafeAreaView>
+      <ImageViewer
+        visible={showImageViewer}
+        attachment={selectedAttachment}
+        onClose={() => setShowImageViewer(false)}
+      />
+    </View>
   );
 };
 
@@ -238,148 +260,174 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  scrollView: {
+  header: {
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    color: COLORS.WHITE,
+    flex: 1,
+    textAlign: 'center',
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.MD,
-    paddingBottom: SPACING.XL * 2,
+    padding: 20,
+    paddingBottom: 32,
   },
-  header: {
+  summaryCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
     alignItems: 'center',
-    marginBottom: SPACING.LG,
+    ...SHADOWS.MD,
   },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.SM,
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
-  subtitle: {
+  transactionType: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_SECONDARY,
-    textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.LG,
-  },
-  typeCard: {
-    alignItems: 'center',
-    padding: SPACING.XL,
-    marginBottom: SPACING.LG,
-  },
-  typeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MD,
-  },
-  typeText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
-    marginLeft: SPACING.SM,
+    marginBottom: 8,
+    textTransform: 'capitalize',
   },
   amount: {
     fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    marginBottom: 8,
+  },
+  category: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    color: COLORS.TEXT_PRIMARY,
   },
   detailsCard: {
-    marginBottom: SPACING.LG,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    ...SHADOWS.MD,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.MD,
+    marginBottom: 20,
   },
   detailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: SPACING.SM,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER_LIGHT,
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
   },
   detailLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_SECONDARY,
-    flex: 1,
+    minWidth: 60,
   },
   detailValue: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    flex: 1,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_PRIMARY,
-    flex: 2,
     textAlign: 'right',
   },
-  personCard: {
-    marginBottom: SPACING.LG,
-  },
-  personRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  personInfo: {
-    flex: 1,
-  },
-  personName: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-  },
-  personBalance: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-  },
   attachmentCard: {
-    marginBottom: SPACING.LG,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    ...SHADOWS.MD,
   },
-  attachmentRow: {
-    flexDirection: 'row',
+  attachmentPreview: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+  },
+  attachmentOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.OVERLAY,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  attachmentThumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: SPACING.MD,
-  },
-  attachmentInfo: {
-    flex: 1,
+  attachmentText: {
+    color: COLORS.WHITE,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
   },
   attachmentName: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-  },
-  attachmentType: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
   },
-  actionButtons: {
-    gap: SPACING.MD,
+  actionsSection: {
+    gap: 12,
   },
   editButton: {
-    marginBottom: SPACING.SM,
+    borderRadius: 16,
   },
   deleteButton: {
-    backgroundColor: COLORS.ERROR,
+    borderRadius: 16,
     borderColor: COLORS.ERROR,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.XL,
+    padding: 20,
   },
   errorText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.LG,
+    color: COLORS.ERROR,
+    marginBottom: 24,
     textAlign: 'center',
   },
   errorButton: {
-    width: 200,
+    paddingHorizontal: 32,
   },
 });
 

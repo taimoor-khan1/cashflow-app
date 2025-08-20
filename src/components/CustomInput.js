@@ -51,7 +51,7 @@ const CustomInput = ({
           ]}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor={COLORS.GRAY_500}
+          placeholderTextColor={COLORS.GRAY_400}
           {...textInputProps}
         />
         
@@ -73,57 +73,60 @@ const CustomInput = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: SPACING.MD,
+    marginBottom: 16,
     flex: 1,
   },
   label: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.WHITE,
+    backgroundColor: COLORS.GRAY_50,
     borderWidth: 1,
     borderColor: COLORS.BORDER,
-    borderRadius: BORDER_RADIUS.MD,
-    paddingHorizontal: SPACING.MD,
-    minHeight: 40,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    minHeight: 48,
     ...SHADOWS.SM,
   },
   inputContainerFocused: {
     borderColor: COLORS.PRIMARY,
     borderWidth: 2,
+    backgroundColor: COLORS.WHITE,
+    ...SHADOWS.MD,
   },
   inputContainerError: {
     borderColor: COLORS.ERROR,
     borderWidth: 2,
+    backgroundColor: COLORS.WHITE,
   },
   input: {
     flex: 1,
     fontSize: TYPOGRAPHY.FONT_SIZE.BASE,
     color: COLORS.TEXT_PRIMARY,
-    paddingVertical: SPACING.SM,
+    paddingVertical: 12,
   },
   inputWithLeftIcon: {
-    marginLeft: SPACING.SM,
+    marginLeft: 8,
   },
   inputWithRightIcon: {
-    marginRight: SPACING.SM,
+    marginRight: 8,
   },
   leftIcon: {
-    marginRight: SPACING.SM,
+    marginRight: 8,
   },
   rightIcon: {
-    marginLeft: SPACING.SM,
+    marginLeft: 8,
   },
   errorText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.ERROR,
-    marginTop: SPACING.XS,
-    marginLeft: SPACING.SM,
+    marginTop: 6,
+    marginLeft: 4,
   },
 });
 

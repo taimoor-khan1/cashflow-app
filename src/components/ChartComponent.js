@@ -8,30 +8,37 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
   const renderBarChart = () => {
     if (!data || data.length === 0) return null;
 
-    const maxValue = Math.max(...data.map(item => item.value));
+    const maxValue = Math.max(...data.map(item => item.value || 0));
+    if (maxValue <= 0) return null;
+    
     const chartWidth = width - 40; // Account for padding
 
     return (
       <View style={styles.chartContainer}>
-        {data.map((item, index) => (
-          <View key={index} style={styles.barContainer}>
-            <View style={styles.barWrapper}>
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    height: (item.value / maxValue) * 120,
-                    backgroundColor: COLORS.PRIMARY,
-                  },
-                ]}
-              />
+        {data.map((item, index) => {
+          const height = ((item.value || 0) / maxValue) * 120;
+          if (isNaN(height)) return null;
+          
+          return (
+            <View key={index} style={styles.barContainer}>
+              <View style={styles.barWrapper}>
+                <View
+                  style={[
+                    styles.bar,
+                    {
+                      height: Math.max(0, height),
+                      backgroundColor: COLORS.PRIMARY,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.barLabel} numberOfLines={1}>
+                {item.category}
+              </Text>
+              <Text style={styles.barValue}>{item.value || 0}%</Text>
             </View>
-            <Text style={styles.barLabel} numberOfLines={1}>
-              {item.category}
-            </Text>
-            <Text style={styles.barValue}>{item.value}%</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   };
@@ -39,16 +46,21 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
   const renderLineChart = () => {
     if (!data || data.length === 0) return null;
 
-    const maxValue = Math.max(...data.map(item => item.value));
+    const maxValue = Math.max(...data.map(item => item.value || 0));
+    if (maxValue <= 0) return null;
+    
     const chartWidth = width - 40;
-    const pointSpacing = chartWidth / (data.length - 1);
+    const pointSpacing = chartWidth / Math.max(data.length - 1, 1);
 
     return (
       <View style={styles.lineChartContainer}>
         <View style={styles.lineChart}>
           {data.map((item, index) => {
-            const x = (index / (data.length - 1)) * chartWidth;
-            const y = 120 - (item.value / maxValue) * 120;
+            const x = (index / Math.max(data.length - 1, 1)) * chartWidth;
+            const y = 120 - ((item.value || 0) / maxValue) * 120;
+
+            // Ensure x and y are valid numbers
+            if (isNaN(x) || isNaN(y)) return null;
 
             return (
               <View
@@ -56,8 +68,8 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
                 style={[
                   styles.linePoint,
                   {
-                    left: x - 4,
-                    top: y - 4,
+                    left: Math.max(0, Math.min(x - 4, chartWidth - 8)),
+                    top: Math.max(0, Math.min(y - 4, 120 - 8)),
                   },
                 ]}
               />
@@ -78,17 +90,21 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
   const renderPieChart = () => {
     if (!data || data.length === 0) return null;
 
-    const total = data.reduce((sum, item) => sum + item.value, 0);
+    const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
+    if (total <= 0) return null;
+    
     let currentAngle = 0;
 
     return (
       <View style={styles.pieChartContainer}>
         <View style={styles.pieChart}>
           {data.map((item, index) => {
-            const percentage = (item.value / total) * 100;
+            const percentage = ((item.value || 0) / total) * 100;
             const angle = (percentage / 100) * 360;
             const startAngle = currentAngle;
             currentAngle += angle;
+
+            if (isNaN(angle) || isNaN(startAngle)) return null;
 
             return (
               <View
@@ -117,7 +133,7 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
                 ]}
               />
               <Text style={styles.legendText}>{item.category}</Text>
-              <Text style={styles.legendValue}>{item.value}%</Text>
+              <Text style={styles.legendValue}>{item.value || 0}%</Text>
             </View>
           ))}
         </View>
@@ -126,6 +142,14 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
   };
 
   const renderChart = () => {
+    if (!data || data.length === 0) {
+      return (
+        <View style={styles.emptyChart}>
+          <Text style={styles.emptyChartText}>No data available</Text>
+        </View>
+      );
+    }
+
     switch (type) {
       case 'line':
         return renderLineChart();
@@ -262,6 +286,17 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_SECONDARY,
+  },
+  emptyChart: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.MD,
+  },
+  emptyChartText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
   },
 });
 

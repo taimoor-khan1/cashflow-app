@@ -8,8 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  StatusBar,
 } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../constants';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { useAuth } from '../navigation/AppNavigator';
@@ -22,6 +26,10 @@ const EditProfileScreen = ({ navigation }) => {
     email: 'john.doe@example.com',
     phone: '+1 (555) 123-4567',
     bio: 'Financial enthusiast and app developer',
+    company: 'Tech Solutions Inc.',
+    position: 'Senior Developer',
+    location: 'San Francisco, CA',
+    website: 'https://johndoe.dev',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -45,6 +53,10 @@ const EditProfileScreen = ({ navigation }) => {
 
     if (formData.phone.trim() && !/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
+    }
+
+    if (formData.website.trim() && !/^https?:\/\/.+/.test(formData.website)) {
+      newErrors.website = 'Please enter a valid website URL';
     }
 
     setErrors(newErrors);
@@ -117,120 +129,231 @@ const EditProfileScreen = ({ navigation }) => {
     );
   };
 
+  const handleChangeProfilePicture = () => {
+    Alert.alert(
+      'Change Profile Picture',
+      'Choose an option to update your profile picture',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => console.log('Take photo') },
+        { text: 'Choose from Gallery', onPress: () => console.log('Choose from gallery') },
+      ]
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Edit Profile</Text>
-          <Text style={styles.subtitle}>
-            Update your personal information and preferences
-          </Text>
-        </View>
+      <SafeAreaView style={styles.safeArea}>
+        <LinearGradient
+          colors={[COLORS.PRIMARY, COLORS.SECONDARY]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <StatusBar barStyle="light-content" />
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Icon name="arrow-back" size={28} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+            <View style={styles.headerPlaceholder} />
+          </View>
+        </LinearGradient>
 
-        <View style={styles.form}>
-          <View style={styles.nameRow}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.form}>
+            {/* Profile Picture Section */}
+            <View style={styles.profilePictureSection}>
+              <View style={styles.profilePictureContainer}>
+                <View style={styles.profilePicture}>
+                  <Icon name="person" size={48} color={COLORS.GRAY_400} />
+                </View>
+                <TouchableOpacity style={styles.changePictureButton} onPress={handleChangeProfilePicture}>
+                  <Icon name="camera-alt" size={20} color={COLORS.WHITE} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.profilePictureText}>Tap to change profile picture</Text>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+            </View>
+
+            <View style={styles.nameRow}>
+              <CustomInput
+                label="First Name"
+                value={formData.firstName}
+                onChangeText={(value) => handleInputChange('firstName', value)}
+                placeholder="Enter first name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                error={errors.firstName}
+                style={styles.halfWidth}
+              />
+              <CustomInput
+                label="Last Name"
+                value={formData.lastName}
+                onChangeText={(value) => handleInputChange('lastName', value)}
+                placeholder="Enter last name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                error={errors.lastName}
+                style={styles.halfWidth}
+              />
+            </View>
+
             <CustomInput
-              label="First Name"
-              value={formData.firstName}
-              onChangeText={(value) => handleInputChange('firstName', value)}
-              placeholder="Enter first name"
-              autoCapitalize="words"
+              label="Email Address"
+              value={formData.email}
+              onChangeText={(value) => handleInputChange('email', value)}
+              placeholder="Enter email address"
+              keyboardType="email-address"
+              autoCapitalize="none"
               autoCorrect={false}
-              error={errors.firstName}
-              style={styles.halfWidth}
+              error={errors.email}
             />
+
             <CustomInput
-              label="Last Name"
-              value={formData.lastName}
-              onChangeText={(value) => handleInputChange('lastName', value)}
-              placeholder="Enter last name"
-              autoCapitalize="words"
-              autoCorrect={false}
-              error={errors.lastName}
-              style={styles.halfWidth}
+              label="Phone Number (Optional)"
+              value={formData.phone}
+              onChangeText={(value) => handleInputChange('phone', value)}
+              placeholder="Enter phone number"
+              keyboardType="phone-pad"
+              error={errors.phone}
             />
+
+            <CustomInput
+              label="Bio (Optional)"
+              value={formData.bio}
+              onChangeText={(value) => handleInputChange('bio', value)}
+              placeholder="Tell us about yourself"
+              multiline
+              numberOfLines={3}
+              autoCapitalize="sentences"
+            />
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Professional Information</Text>
+            </View>
+
+            <View style={styles.nameRow}>
+              <CustomInput
+                label="Company"
+                value={formData.company}
+                onChangeText={(value) => handleInputChange('company', value)}
+                placeholder="Enter company name"
+                autoCapitalize="words"
+                style={styles.halfWidth}
+              />
+              <CustomInput
+                label="Position"
+                value={formData.position}
+                onChangeText={(value) => handleInputChange('position', value)}
+                placeholder="Enter job title"
+                autoCapitalize="words"
+                style={styles.halfWidth}
+              />
+            </View>
+
+            <CustomInput
+              label="Location"
+              value={formData.location}
+              onChangeText={(value) => handleInputChange('location', value)}
+              placeholder="Enter your location"
+              autoCapitalize="words"
+            />
+
+            <CustomInput
+              label="Website (Optional)"
+              value={formData.website}
+              onChangeText={(value) => handleInputChange('website', value)}
+              placeholder="https://yourwebsite.com"
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.buttonContainer}>
+              <CustomButton
+                title="Cancel"
+                onPress={() => navigation.goBack()}
+                variant="outline"
+                style={styles.cancelButton}
+              />
+              <CustomButton
+                title="Save Changes"
+                onPress={handleSubmit}
+                loading={loading}
+                style={styles.submitButton}
+              />
+            </View>
           </View>
 
-          <CustomInput
-            label="Email Address"
-            value={formData.email}
-            onChangeText={(value) => handleInputChange('email', value)}
-            placeholder="Enter email address"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            error={errors.email}
-          />
+          {/* Additional Options */}
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionsTitle}>Account Options</Text>
+            
+            <TouchableOpacity style={styles.optionItem} onPress={handleResetPassword}>
+              <View style={styles.optionContent}>
+                <Icon name="lock" size={24} color={COLORS.PRIMARY} />
+                <View style={styles.optionText}>
+                  <Text style={styles.optionLabel}>Reset Password</Text>
+                  <Text style={styles.optionDescription}>Change your account password</Text>
+                </View>
+              </View>
+              <Icon name="arrow-forward" size={28} color={COLORS.TEXT_TERTIARY} />
+            </TouchableOpacity>
 
-          <CustomInput
-            label="Phone Number (Optional)"
-            value={formData.phone}
-            onChangeText={(value) => handleInputChange('phone', value)}
-            placeholder="Enter phone number"
-            keyboardType="phone-pad"
-            error={errors.phone}
-          />
+            <TouchableOpacity style={styles.optionItem}>
+              <View style={styles.optionContent}>
+                <Icon name="notifications" size={24} color={COLORS.PRIMARY} />
+                <View style={styles.optionText}>
+                  <Text style={styles.optionLabel}>Notification Settings</Text>
+                  <Text style={styles.optionDescription}>Manage your notification preferences</Text>
+                </View>
+              </View>
+              <Icon name="arrow-forward" size={28} color={COLORS.TEXT_TERTIARY} />
+            </TouchableOpacity>
 
-          <CustomInput
-            label="Bio (Optional)"
-            value={formData.bio}
-            onChangeText={(value) => handleInputChange('bio', value)}
-            placeholder="Tell us about yourself"
-            multiline
-            numberOfLines={3}
-            autoCapitalize="sentences"
-          />
+            <TouchableOpacity style={styles.optionItem}>
+              <View style={styles.optionContent}>
+                <Icon name="security" size={24} color={COLORS.PRIMARY} />
+                <View style={styles.optionText}>
+                  <Text style={styles.optionLabel}>Privacy & Security</Text>
+                  <Text style={styles.optionDescription}>Manage your privacy settings</Text>
+                </View>
+              </View>
+              <Icon name="arrow-forward" size={28} color={COLORS.TEXT_TERTIARY} />
+            </TouchableOpacity>
 
-          <View style={styles.buttonContainer}>
-            <CustomButton
-              title="Cancel"
-              onPress={() => navigation.goBack()}
-              variant="outline"
-              style={styles.cancelButton}
-            />
-            <CustomButton
-              title="Save Changes"
-              onPress={handleSubmit}
-              loading={loading}
-              style={styles.submitButton}
-            />
+            <TouchableOpacity style={styles.optionItem} onPress={handleDeleteAccount}>
+              <View style={styles.optionContent}>
+                <Icon name="delete" size={24} color={COLORS.ERROR} />
+                <View style={styles.optionText}>
+                  <Text style={[styles.optionLabel, { color: COLORS.ERROR }]}>Delete Account</Text>
+                  <Text style={styles.optionDescription}>Permanently remove your account</Text>
+                </View>
+              </View>
+              <Icon name="arrow-forward" size={28} color={COLORS.TEXT_TERTIARY} />
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Additional Options */}
-        <View style={styles.optionsSection}>
-          <Text style={styles.optionsTitle}>Account Options</Text>
-          
-          <TouchableOpacity style={styles.optionItem} onPress={handleResetPassword}>
-            <View style={styles.optionContent}>
-              <Text style={styles.optionIcon}>🔐</Text>
-              <View style={styles.optionText}>
-                <Text style={styles.optionLabel}>Reset Password</Text>
-                <Text style={styles.optionDescription}>Change your account password</Text>
-              </View>
-            </View>
-            <Text style={styles.optionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.optionItem} onPress={handleDeleteAccount}>
-            <View style={styles.optionContent}>
-              <Text style={styles.optionIcon}>🗑️</Text>
-              <View style={styles.optionText}>
-                <Text style={[styles.optionLabel, { color: COLORS.ERROR }]}>Delete Account</Text>
-                <Text style={styles.optionDescription}>Permanently remove your account</Text>
-              </View>
-            </View>
-            <Text style={styles.optionArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* Logout Section */}
+          <View style={styles.logoutSection}>
+            <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+              <Icon name="logout" size={24} color={COLORS.ERROR} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 };
@@ -240,6 +363,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
+  safeArea: {
+    flex: 1,
+  },
+  headerGradient: {
+    paddingTop: StatusBar.currentHeight,
+    paddingBottom: SPACING.MD,
+    paddingHorizontal: SPACING.MD,
+    borderBottomLeftRadius: BORDER_RADIUS.XL,
+    borderBottomRightRadius: BORDER_RADIUS.XL,
+    ...SHADOWS.MD,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: SPACING.SM,
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    color: COLORS.WHITE,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerPlaceholder: {
+    width: 40, // Adjust as needed for spacing
+  },
   scrollView: {
     flex: 1,
   },
@@ -247,25 +399,46 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: SPACING.XL,
   },
-  header: {
-    padding: SPACING.MD,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    textAlign: 'center',
-    
-  },
   form: {
     padding: SPACING.MD,
+  },
+  profilePictureSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.MD,
+  },
+  profilePictureContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.WHITE,
+    backgroundColor: COLORS.GRAY_200,
+    ...SHADOWS.SM,
+  },
+  profilePicture: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changePictureButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.PRIMARY,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.WHITE,
+  },
+  profilePictureText: {
+    marginTop: SPACING.SM,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.TEXT_SECONDARY,
   },
   nameRow: {
     flexDirection: 'row',
@@ -303,11 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.WHITE,
     borderRadius: BORDER_RADIUS.MD,
     marginBottom: SPACING.SM,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...SHADOWS.SM,
   },
   optionContent: {
     flexDirection: 'row',
@@ -335,6 +504,34 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     color: COLORS.TEXT_TERTIARY,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+  },
+  sectionHeader: {
+    marginTop: SPACING.MD,
+    marginBottom: SPACING.SM,
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  logoutSection: {
+    padding: SPACING.MD,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.MD,
+    paddingHorizontal: SPACING.MD,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: BORDER_RADIUS.MD,
+    ...SHADOWS.SM,
+  },
+  logoutText: {
+    marginLeft: SPACING.SM,
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    color: COLORS.ERROR,
   },
 });
 

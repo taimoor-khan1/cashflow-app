@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SCREENS, COLORS, TYPOGRAPHY } from '../constants';
@@ -22,8 +22,9 @@ import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import TransactionsListScreen from '../screens/TransactionsListScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Authentication Context
@@ -50,7 +51,7 @@ const MainTabNavigator = () => {
           borderTopWidth: 1,
           paddingBottom: 20,
           paddingTop: 5,
-          // height: 100,
+          height: 80,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -133,7 +134,7 @@ const MainStackNavigator = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true,
+        headerShown: false,
         headerStyle: {
           backgroundColor: COLORS.WHITE,
           borderBottomColor: COLORS.BORDER,

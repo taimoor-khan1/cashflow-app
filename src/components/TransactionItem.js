@@ -1,21 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 
 const TransactionItem = ({ 
-  id,
-  type, 
-  amount, 
-  category, 
-  notes, 
-  date, 
-  personName, 
-  attachment,
+  transaction,
   onPress, 
   onAttachmentPress,
   style 
 }) => {
+  const { type, amount, category, notes, date, personName, attachment } = transaction;
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -33,7 +28,7 @@ const TransactionItem = ({
   };
 
   const getTransactionIcon = (type) => {
-    return type === 'income' ? '💰' : '💸';
+    return type === 'income' ? 'trending-up' : 'trending-down';
   };
 
   const getTransactionColor = (type) => {
@@ -45,9 +40,16 @@ const TransactionItem = ({
   };
 
   return (
-    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{getTransactionIcon(type)}</Text>
+    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.8}>
+      <View style={[
+        styles.iconContainer,
+        { backgroundColor: type === 'income' ? '#DCFCE7' : '#FEE2E2' }
+      ]}>
+        <Icon 
+          name={getTransactionIcon(type)} 
+          size={20} 
+          color={getTransactionColor(type)} 
+        />
       </View>
 
       <View style={styles.content}>
@@ -70,10 +72,16 @@ const TransactionItem = ({
           </Text>
         )}
 
+        {personName && (
+          <Text style={styles.personName}>
+            {personName}
+          </Text>
+        )}
+
         {attachment && (
           <TouchableOpacity 
             style={styles.attachmentContainer} 
-            onPress={onAttachmentPress}
+            onPress={() => onAttachmentPress(attachment)}
             activeOpacity={0.7}
           >
             <Icon name="attach-file" size={16} color={COLORS.PRIMARY} />
@@ -83,7 +91,10 @@ const TransactionItem = ({
 
         <View style={styles.footer}>
           <Text style={styles.date}>{formatDate(date)}</Text>
-          <View style={styles.typeContainer}>
+          <View style={[
+            styles.typeContainer,
+            { backgroundColor: type === 'income' ? '#DCFCE7' : '#FEE2E2' }
+          ]}>
             <Text
               style={[
                 styles.type,
@@ -103,27 +114,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: COLORS.WHITE,
-    borderRadius: BORDER_RADIUS.MD,
-    padding: SPACING.MD,
-    marginVertical: SPACING.SM,
-    marginHorizontal: SPACING.MD,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 12,
+    ...SHADOWS.MD,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.MD,
-    backgroundColor: COLORS.GRAY_100,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.MD,
-  },
-  icon: {
-    fontSize: 24,
+    marginRight: 16,
   },
   content: {
     flex: 1,
@@ -132,7 +134,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.XS,
+    marginBottom: 6,
   },
   category: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
@@ -146,7 +148,13 @@ const styles = StyleSheet.create({
   notes: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.SM,
+    marginBottom: 8,
+    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
+  },
+  personName: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.TEXT_TERTIARY,
+    marginBottom: 8,
   },
   footer: {
     flexDirection: 'row',
@@ -158,10 +166,9 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT_TERTIARY,
   },
   typeContainer: {
-    backgroundColor: COLORS.GRAY_100,
-    paddingHorizontal: SPACING.SM,
-    paddingVertical: SPACING.XS,
-    borderRadius: BORDER_RADIUS.SM,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   type: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XS,
@@ -171,8 +178,8 @@ const styles = StyleSheet.create({
   attachmentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.SM,
-    gap: SPACING.XS,
+    marginBottom: 8,
+    gap: 6,
   },
   attachmentText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XS,

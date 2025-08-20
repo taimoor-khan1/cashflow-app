@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { COLORS, TYPOGRAPHY, BORDER_RADIUS, SPACING } from '../constants';
+import { COLORS, TYPOGRAPHY, BORDER_RADIUS, SPACING, SHADOWS } from '../constants';
 
 const CustomButton = ({
   title,
@@ -65,11 +65,12 @@ const CustomButton = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: BORDER_RADIUS.MD,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     backgroundColor: COLORS.PRIMARY,
+    ...SHADOWS.MD,
   },
   primary: {
     backgroundColor: COLORS.PRIMARY,
@@ -81,30 +82,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: COLORS.PRIMARY,
+    ...SHADOWS.SM,
   },
   disabled: {
     backgroundColor: COLORS.GRAY_300,
     borderColor: COLORS.GRAY_300,
+    ...SHADOWS.SM,
   },
   small: {
-    paddingVertical: SPACING.SM,
-    paddingHorizontal: SPACING.MD,
-    minHeight: 36,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minHeight: 40,
   },
   medium: {
-    paddingVertical: SPACING.MD,
-    paddingHorizontal: SPACING.LG,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     minHeight: 48,
   },
   large: {
-    paddingVertical: SPACING.LG,
-    paddingHorizontal: SPACING.XL,
+    paddingVertical: 18,
+    paddingHorizontal: 32,
     minHeight: 56,
   },
   text: {
     color: COLORS.WHITE,
     fontSize: TYPOGRAPHY.FONT_SIZE.BASE,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     textAlign: 'center',
   },
   smallText: {
@@ -118,6 +121,7 @@ const styles = StyleSheet.create({
   },
   outlineText: {
     color: COLORS.PRIMARY,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
   },
   disabledText: {
     color: COLORS.GRAY_600,

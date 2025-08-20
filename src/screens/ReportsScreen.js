@@ -7,19 +7,38 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA } from '../constants';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
 import ChartComponent from '../components/ChartComponent';
 import Card from '../components/Card';
 
 const ReportsScreen = ({ navigation }) => {
+  // Create sample data for reports since the chart data structure changed
+  const sampleMonthlyData = [
+    { month: 'Jan', income: 2500, expenses: 1200 },
+    { month: 'Feb', income: 3000, expenses: 1800 },
+    { month: 'Mar', income: 2800, expenses: 1600 },
+    { month: 'Apr', income: 3200, expenses: 2000 },
+    { month: 'May', income: 2900, expenses: 1700 },
+    { month: 'Jun', income: 3500, expenses: 2200 },
+  ];
 
-
-  const totalIncome = MOCK_DATA.CHART_DATA.monthlyCashFlow.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = MOCK_DATA.CHART_DATA.monthlyCashFlow.reduce((sum, item) => sum + item.expenses, 0);
+  const totalIncome = sampleMonthlyData.reduce((sum, item) => sum + item.income, 0);
+  const totalExpenses = sampleMonthlyData.reduce((sum, item) => sum + item.expenses, 0);
   const netCashFlow = totalIncome - totalExpenses;
 
-  const averageMonthlyIncome = totalIncome / MOCK_DATA.CHART_DATA.monthlyCashFlow.length;
-  const averageMonthlyExpenses = totalExpenses / MOCK_DATA.CHART_DATA.monthlyCashFlow.length;
+  const averageMonthlyIncome = totalIncome / sampleMonthlyData.length;
+  const averageMonthlyExpenses = totalExpenses / sampleMonthlyData.length;
+
+  // Debug logging
+  console.log('ReportsScreen Data:', {
+    totalIncome,
+    totalExpenses,
+    netCashFlow,
+    averageMonthlyIncome,
+    averageMonthlyExpenses,
+    sampleMonthlyData
+  });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -29,7 +48,7 @@ const ReportsScreen = ({ navigation }) => {
   };
 
   const getBestPerformingMonth = () => {
-    return MOCK_DATA.CHART_DATA.monthlyCashFlow.reduce((best, current) => 
+    return sampleMonthlyData.reduce((best, current) => 
       current.income - current.expenses > best.income - best.expenses ? current : best
     ).month;
   };
@@ -50,8 +69,13 @@ const ReportsScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Reports & Analytics</Text>
-          <Text style={styles.subtitle}>Track your financial performance</Text>
+          <LinearGradient
+            colors={COLORS.GRADIENT_PRIMARY}
+            style={styles.headerGradient}
+          >
+            <Text style={styles.title}>Reports & Analytics</Text>
+            <Text style={styles.subtitle}>Track your financial performance</Text>
+          </LinearGradient>
         </View>
 
         {/* Summary Cards */}
@@ -97,7 +121,7 @@ const ReportsScreen = ({ navigation }) => {
           <ChartComponent
             type="line"
             title=""
-            data={MOCK_DATA.CHART_DATA.monthlyCashFlow.map(item => ({
+            data={sampleMonthlyData.map(item => ({
               category: item.month,
               value: item.income - item.expenses,
             }))}
@@ -113,7 +137,7 @@ const ReportsScreen = ({ navigation }) => {
           <ChartComponent
             type="pie"
             title=""
-            data={MOCK_DATA.CHART_DATA.categoryBreakdown}
+            data={MOCK_DATA.CHART_DATA.categoryBreakdown || []}
           />
         </View>
 
@@ -185,15 +209,20 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: SPACING.XL,
   },
+  headerGradient: {
+    padding: SPACING.MD,
+    borderRadius: SPACING.MD,
+    alignItems: 'center',
+  },
   title: {
     fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
+    color: COLORS.WHITE,
     marginBottom: SPACING.XS,
   },
   subtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.WHITE,
   },
   summarySection: {
     marginBottom: SPACING.XL,
@@ -208,6 +237,9 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.XS,
     alignItems: 'center',
     padding: SPACING.LG,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: BORDER_RADIUS.LG,
+    ...SHADOWS.MD,
   },
   summaryLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
@@ -226,6 +258,9 @@ const styles = StyleSheet.create({
   netCashFlowCard: {
     alignItems: 'center',
     padding: SPACING.LG,
+    backgroundColor: COLORS.INCOME,
+    borderRadius: BORDER_RADIUS.LG,
+    ...SHADOWS.MD,
   },
   netCashFlowLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,

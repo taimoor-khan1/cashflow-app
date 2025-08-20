@@ -7,7 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import { formatDate, formatTime, formatDateForInput } from '../utils';
 
 // Import date picker based on platform
@@ -148,14 +148,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.MD,
     backgroundColor: COLORS.WHITE,
     minHeight: 48,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...SHADOWS.SM,
   },
   disabled: {
     backgroundColor: COLORS.GRAY_100,

@@ -8,8 +8,9 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {COLORS, TYPOGRAPHY, SPACING, APP_CONFIG} from '../constants';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import {COLORS, TYPOGRAPHY, SPACING, APP_CONFIG, SHADOWS} from '../constants';
 import Card from '../components/Card';
 import CustomButton from '../components/CustomButton';
 import {useAuth} from '../navigation/AppNavigator';
@@ -61,20 +62,40 @@ const ProfileScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={handleEditProfile}
+          >
+            <Icon name="edit" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+        </View>
+        
+        <Text style={styles.headerSubtitle}>Manage your account</Text>
+      </LinearGradient>
 
       <ScrollView
-        style={styles.scrollView}
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Manage your account</Text>
-        </View>
-
+        
         {/* Profile Info */}
-        <Card style={styles.profileCard}>
+        <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -86,44 +107,49 @@ const ProfileScreen = ({navigation}) => {
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
           <Text style={styles.joinDate}>Member since {user.joinDate}</Text>
-
-          <CustomButton
-            title="Edit Profile"
-            onPress={handleEditProfile}
-            variant="outline"
-            style={styles.editButton}
-          />
-        </Card>
+        </View>
 
         {/* Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Your Activity</Text>
           <View style={styles.statsGrid}>
-            <Card style={styles.statCard}>
-              <Text style={styles.statNumber}>{user.totalTransactions}</Text>
+            <View style={styles.statCard}>
+              <Icon name="receipt" size={24} color={COLORS.PRIMARY} />
+              <Text style={styles.statValue}>{user.totalTransactions}</Text>
               <Text style={styles.statLabel}>Transactions</Text>
-            </Card>
-
-            <Card style={styles.statCard}>
-              <Text style={styles.statNumber}>{user.totalPersons}</Text>
-              <Text style={styles.statLabel}>Person Accounts</Text>
-            </Card>
+            </View>
+            <View style={styles.statCard}>
+              <Icon name="people" size={24} color={COLORS.SECONDARY} />
+              <Text style={styles.statValue}>{user.totalPersons}</Text>
+              <Text style={styles.statLabel}>People</Text>
+            </View>
           </View>
         </View>
 
         {/* Settings */}
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Text style={styles.settingText}>App Settings</Text>
-            <Text style={styles.settingArrow}>›</Text>
+          
+          <TouchableOpacity style={styles.settingItem} onPress={handlePrivacyPolicy}>
+            <Icon name="privacy-tip" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.settingText}>Privacy Policy</Text>
+            <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.settingItem} onPress={handleTermsOfService}>
+            <Icon name="description" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.settingText}>Terms of Service</Text>
+            <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.settingItem} onPress={handleContactSupport}>
+            <Icon name="support-agent" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.settingText}>Contact Support</Text>
+            <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
           </TouchableOpacity>
         </View>
 
-        {/* Logout */}
+        {/* Logout Button */}
         <View style={styles.logoutSection}>
           <CustomButton
             title="Logout"
@@ -133,7 +159,7 @@ const ProfileScreen = ({navigation}) => {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -142,33 +168,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  scrollView: {
+  header: {
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+    color: COLORS.WHITE,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSubtitle: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+   
+  },
+  content: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.LG,
-    paddingVertical: SPACING.MD,
-  },
-  header: {
-    marginBottom: SPACING.LG,
-  },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_SECONDARY,
+    padding: 20,
+    paddingBottom: 32,
   },
   profileCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    padding: SPACING.XL,
-    marginBottom: SPACING.XL,
+    marginBottom: 24,
+    ...SHADOWS.MD,
   },
   avatarContainer: {
-    marginBottom: SPACING.MD,
+    marginBottom: 16,
   },
   avatar: {
     width: 80,
@@ -179,101 +235,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
+    fontSize: 32,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
     color: COLORS.WHITE,
   },
   userName: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    marginBottom: 4,
   },
   userEmail: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.SM,
+    marginBottom: 8,
   },
   joinDate: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_TERTIARY,
-    marginBottom: SPACING.LG,
-  },
-  editButton: {
-    width: '100%',
+    marginBottom: 16,
   },
   statsSection: {
-    marginBottom: SPACING.XL,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.MD,
+    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 16,
   },
   statCard: {
     flex: 1,
-    marginHorizontal: SPACING.XS,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
-    padding: SPACING.LG,
+    ...SHADOWS.SM,
   },
-  statNumber: {
+  statValue: {
     fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.PRIMARY,
-    marginBottom: SPACING.SM,
+    color: COLORS.TEXT_PRIMARY,
+    marginTop: 8,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    textAlign: 'center',
   },
   settingsSection: {
-    marginBottom: SPACING.XL,
+    marginBottom: 24,
   },
   settingItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.MD,
-    paddingHorizontal: SPACING.MD,
-    backgroundColor: COLORS.CARD_BACKGROUND,
-    borderRadius: 8,
-    marginBottom: SPACING.SM,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    ...SHADOWS.SM,
   },
   settingText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    flex: 1,
+    fontSize: TYPOGRAPHY.FONT_SIZE.BASE,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
-  },
-  settingArrow: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.TEXT_TERTIARY,
-  },
-  appInfoSection: {
-    marginBottom: SPACING.XL,
-  },
-  appInfoCard: {
-    padding: SPACING.MD,
-  },
-  appInfoText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.XS,
+    marginLeft: 16,
   },
   logoutSection: {
-    marginBottom: SPACING.XL,
+    alignItems: 'center',
   },
   logoutButton: {
-    width: '100%',
+    paddingHorizontal: 48,
+    borderRadius: 16,
   },
 });
 

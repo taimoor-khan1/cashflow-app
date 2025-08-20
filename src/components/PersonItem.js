@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 
 const PersonItem = ({
   name,
@@ -32,7 +32,7 @@ const PersonItem = ({
     <TouchableOpacity
       style={styles.container}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
       <View style={styles.leftSection}>
         <View style={[styles.avatar, { backgroundColor: COLORS.PRIMARY }]}>
@@ -81,12 +81,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.MD,
+    padding: 18,
     backgroundColor: COLORS.WHITE,
-    borderRadius: BORDER_RADIUS.MD,
-    marginBottom: SPACING.SM,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER_LIGHT,
+    borderRadius: 18,
+    marginBottom: 16,
+    ...SHADOWS.MD,
   },
   leftSection: {
     flex: 1,
@@ -94,12 +93,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: BORDER_RADIUS.FULL,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.MD,
+    marginRight: 16,
   },
   avatarText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
@@ -113,12 +112,13 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    marginBottom: 6,
   },
   notes: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: SPACING.XS,
+    marginBottom: 6,
+    // lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   transactionCount: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XS,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   balance: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    marginBottom: SPACING.XS,
+    marginBottom: 6,
   },
   summary: {
     alignItems: 'flex-end',
