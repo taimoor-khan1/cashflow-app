@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
+import { formatCurrency } from '../utils';
 import CustomButton from '../components/CustomButton';
 import ImageViewer from '../components/ImageViewer';
+import ScreenHeader from '../components/ScreenHeader';
 
 const TransactionDetailScreen = ({ navigation, route }) => {
   const { transactionId } = route.params;
@@ -80,13 +82,6 @@ const TransactionDetailScreen = ({ navigation, route }) => {
       setSelectedAttachment(transaction.attachment);
       setShowImageViewer(true);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {

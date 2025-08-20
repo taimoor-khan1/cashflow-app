@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
+import { formatCurrency } from '../utils';
 
 const PersonItem = ({
   name,
@@ -16,10 +17,6 @@ const PersonItem = ({
   transactionCount,
   onPress,
 }) => {
-  const formatAmount = (amount) => {
-    return `$${Math.abs(amount).toFixed(2)}`;
-  };
-
   const getBalanceColor = () => {
     return balance >= 0 ? COLORS.INCOME : COLORS.EXPENSE;
   };
@@ -61,15 +58,15 @@ const PersonItem = ({
           styles.balance,
           { color: getBalanceColor() }
         ]}>
-          {getBalancePrefix()}{formatAmount(balance)}
+          {getBalancePrefix()}{formatCurrency(balance)}
         </Text>
         
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            +{formatAmount(totalIncome)}
+            +{formatCurrency(totalIncome)}
           </Text>
           <Text style={styles.summaryText}>
-            -{formatAmount(totalExpenses)}
+            -{formatCurrency(totalExpenses)}
           </Text>
         </View>
       </View>

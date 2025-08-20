@@ -11,8 +11,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, MOCK_DATA, SHADOWS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
+import { formatCurrency } from '../utils';
+import CustomButton from '../components/CustomButton';
+import TransactionItem from '../components/TransactionItem';
+import PersonItem from '../components/PersonItem';
 import ChartComponent from '../components/ChartComponent';
+import ScreenHeader from '../components/ScreenHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -54,9 +59,6 @@ const DashboardScreen = ({ navigation }) => {
     loadDashboardData();
     setRefreshing(false);
   };
-
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
   const getBalanceColor = (balance) => (balance >= 0 ? COLORS.SUCCESS : COLORS.ERROR);
   const getBalancePrefix = (balance) => (balance >= 0 ? '+' : '');
@@ -252,18 +254,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Charts Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Monthly Overview</Text>
-          <View style={styles.chartContainer}>
-            <ChartComponent
-              type="line"
-              title="Cash Flow Trend"
-              data={MOCK_DATA.CHART_DATA.monthlyCashFlow}
-              height={200}
-            />
-          </View>
-        </View>
+    
       </ScrollView>
     </View>
   );

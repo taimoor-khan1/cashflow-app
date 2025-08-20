@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
+import { formatCurrency } from '../utils';
 import CustomButton from '../components/CustomButton';
 import TransactionItem from '../components/TransactionItem';
 import ImageViewer from '../components/ImageViewer';
@@ -93,13 +94,6 @@ const PersonDetailScreen = ({ navigation, route }) => {
   const handleAttachmentPress = (attachment) => {
     setSelectedAttachment(attachment);
     setShowImageViewer(true);
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const getBalanceColor = (balance) => (balance >= 0 ? COLORS.SUCCESS : COLORS.ERROR);

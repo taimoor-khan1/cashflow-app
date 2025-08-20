@@ -223,12 +223,11 @@ const AddTransactionScreen = ({ navigation, route }) => {
               label="Person"
               value={formData.personId}
               onValueChange={(value) => handleInputChange('personId', value)}
-              items={MOCK_DATA.PERSONS.map(person => ({
-                label: person.name,
-                value: person.id
-              }))}
+              items={MOCK_DATA.PERSONS}
               placeholder="Select a person"
               error={errors.personId}
+              valueKey="id"
+              displayKey="name"
             />
 
             {/* Amount */}
@@ -246,12 +245,11 @@ const AddTransactionScreen = ({ navigation, route }) => {
               label="Category"
               value={formData.category}
               onValueChange={(value) => handleInputChange('category', value)}
-              items={MOCK_DATA.CATEGORIES.map(category => ({
-                label: category,
-                value: category
-              }))}
+              items={MOCK_DATA.CATEGORIES.map(category => ({ id: category, name: category }))}
               placeholder="Select category"
               error={errors.category}
+              valueKey="id"
+              displayKey="name"
             />
 
             {/* Date */}

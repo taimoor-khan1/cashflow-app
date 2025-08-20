@@ -7,13 +7,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import ScreenHeader from '../components/ScreenHeader';
 
 const AddPersonScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -77,27 +77,18 @@ const AddPersonScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Gradient Header */}
-      <LinearGradient
-        colors={COLORS.GRADIENT_PRIMARY}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add New Person</Text>
-          <View style={styles.placeholder} />
-        </View>
-        
-        <Text style={styles.headerSubtitle}>
-          Add someone to track your financial transactions with them
-        </Text>
-      </LinearGradient>
-
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Universal Header Component */}
+      <ScreenHeader
+        title="Add Person"
+        subtitle="Create a new person account"
+        variant="gradient"
+        gradientColors={COLORS.GRADIENT_PRIMARY}
+        onBack={() => navigation.goBack()}
+        style={styles.universalHeader}
+      />
+      
       <KeyboardAvoidingView
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -146,56 +137,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.WHITE,
-  },
-  placeholder: {
-    width: 40,
-  },
-  headerSubtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.SEMI_TRANSPARENT_WHITE,
-    textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
-  },
   content: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
+    paddingTop: 0, // Remove top padding since header is now inline
     paddingBottom: 32,
   },
   form: {
     backgroundColor: COLORS.WHITE,
     borderRadius: 20,
     padding: 24,
+    marginTop: SPACING.MD, // Add top margin for better spacing
     ...SHADOWS.MD,
   },
   submitButton: {
     marginTop: 16,
+  },
+  universalHeader: {
+    marginBottom: SPACING.LG,
   },
 });
 

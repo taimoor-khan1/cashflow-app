@@ -9,8 +9,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
+import { formatCurrency } from '../utils';
 import ChartComponent from '../components/ChartComponent';
 import Card from '../components/Card';
+import ScreenHeader from '../components/ScreenHeader';
 
 const ReportsScreen = ({ navigation }) => {
   // Create sample data for reports since the chart data structure changed
@@ -40,13 +42,6 @@ const ReportsScreen = ({ navigation }) => {
     sampleMonthlyData
   });
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
   const getBestPerformingMonth = () => {
     return sampleMonthlyData.reduce((best, current) => 
       current.income - current.expenses > best.income - best.expenses ? current : best
@@ -68,15 +63,15 @@ const ReportsScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <LinearGradient
-            colors={COLORS.GRADIENT_PRIMARY}
-            style={styles.headerGradient}
-          >
-            <Text style={styles.title}>Reports & Analytics</Text>
-            <Text style={styles.subtitle}>Track your financial performance</Text>
-          </LinearGradient>
-        </View>
+        {/* Universal Header Component */}
+        <ScreenHeader
+          title="Reports & Analytics"
+          subtitle="Track your financial performance"
+          variant="gradient"
+          gradientColors={COLORS.GRADIENT_PRIMARY}
+          showBack={false}
+          style={styles.universalHeader}
+        />
 
         {/* Summary Cards */}
         <View style={styles.summarySection}>
@@ -206,24 +201,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.LG,
     paddingVertical: SPACING.MD,
   },
-  header: {
-    marginBottom: SPACING.XL,
-  },
-  headerGradient: {
-    padding: SPACING.MD,
-    borderRadius: SPACING.MD,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.WHITE,
-    marginBottom: SPACING.XS,
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    color: COLORS.WHITE,
-  },
   summarySection: {
     marginBottom: SPACING.XL,
   },
@@ -333,6 +310,9 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
+  },
+  universalHeader: {
+    marginBottom: SPACING.LG,
   },
 });
 

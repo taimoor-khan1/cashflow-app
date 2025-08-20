@@ -14,15 +14,16 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS, TYPOGRAPHY, SPACING, APP_CONFIG } from '../constants';
 import Card from '../components/Card';
 import CustomButton from '../components/CustomButton';
+import ScreenHeader from '../components/ScreenHeader';
 
 const SettingsScreen = ({ navigation }) => {
   const [settings, setSettings] = useState({
     notifications: true,
     darkMode: false,
-    biometricAuth: false,
-    autoBackup: true,
-    currency: 'USD',
     language: 'English',
+    currency: 'PKR',
+    privacy: true,
+    autoBackup: false,
   });
 
   const handleSettingToggle = (key) => {
@@ -34,6 +35,7 @@ const SettingsScreen = ({ navigation }) => {
       'Change Currency',
       'Select your preferred currency',
       [
+        { text: 'PKR', onPress: () => setSettings(prev => ({ ...prev, currency: 'PKR' })) },
         { text: 'USD', onPress: () => setSettings(prev => ({ ...prev, currency: 'USD' })) },
         { text: 'EUR', onPress: () => setSettings(prev => ({ ...prev, currency: 'EUR' })) },
         { text: 'GBP', onPress: () => setSettings(prev => ({ ...prev, currency: 'GBP' })) },
@@ -127,6 +129,17 @@ const SettingsScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Universal Header Component */}
+        <ScreenHeader
+          title="Settings"
+          subtitle="Customize your app experience"
+          variant="plain"
+          backgroundColor={COLORS.BACKGROUND}
+          onBack={() => navigation.goBack()}
+          style={styles.universalHeader}
+        />
+        
+        {/* Original Header Section - Kept for existing design */}
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
           <Text style={styles.subtitle}>Customize your app experience</Text>
@@ -370,6 +383,13 @@ const styles = StyleSheet.create({
   legalText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.MD,
     color: COLORS.TEXT_PRIMARY,
+  },
+  universalHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
 });
 

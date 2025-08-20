@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,9 +27,17 @@ const CustomDropdown = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [filteredItems, setFilteredItems] = useState(items);
+  const [filteredItems, setFilteredItems] = useState(items || []);
+
+  // Update filteredItems when items prop changes
+  useEffect(() => {
+    setFilteredItems(items || []);
+  }, [items]);
 
   const handleOpen = () => {
+    if (!items || items.length === 0) {
+      return; // Don't open if no items
+    }
     setIsOpen(true);
     setSearchText('');
     setFilteredItems(items);
@@ -41,29 +49,46 @@ const CustomDropdown = ({
   };
 
   const handleSelect = (item) => {
-    onValueChange(item);
+    if (valueKey) {
+      onValueChange(item[valueKey]);
+    } else {
+      onValueChange(item);
+    }
     handleClose();
   };
 
   const handleSearch = (text) => {
     setSearchText(text);
+    if (!items || items.length === 0) {
+      setFilteredItems([]);
+      return;
+    }
     if (text.trim() === '') {
       setFilteredItems(items);
     } else {
       const filtered = items.filter(item => {
-        const searchText = displayKey ? item[displayKey] : item;
+        if (!item) return false;
+        const searchText = getDisplayText(item);
         return searchText.toLowerCase().includes(text.toLowerCase());
       });
       setFilteredItems(filtered);
     }
   };
 
-  const selectedItem = items.find(item => {
+  const selectedItem = items && items.length > 0 ? items.find(item => {
     if (valueKey) {
       return item[valueKey] === value;
     }
     return item === value;
-  });
+  }) : null;
+
+  const getDisplayText = (item) => {
+    if (!item) return '';
+    if (displayKey) {
+      return item[displayKey] || '';
+    }
+    return item || '';
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -85,7 +110,7 @@ const CustomDropdown = ({
           styles.dropdownText,
           !selectedItem && styles.placeholderText
         ]}>
-          {selectedItem ? (displayKey ? selectedItem[displayKey] : selectedItem) : placeholder}
+          {selectedItem ? getDisplayText(selectedItem) : placeholder}
         </Text>
         <Icon 
           name={isOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} 
@@ -101,7 +126,7 @@ const CustomDropdown = ({
       )}
 
       <Modal
-        visible={isOpen}
+        visible={isOpen && (items && items.length > 0)}
         transparent
         animationType="fade"
         onRequestClose={handleClose}
@@ -133,29 +158,37 @@ const CustomDropdown = ({
             )}
 
             <FlatList
-              data={filteredItems}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.dropdownItem,
-                    (valueKey ? item[valueKey] === value : item === value) && styles.dropdownItemSelected
-                  ]}
-                  onPress={() => handleSelect(valueKey ? item[valueKey] : item)}
-                >
-                  <Text style={[
-                    styles.dropdownItemText,
-                    (valueKey ? item[valueKey] === value : item === value) && styles.dropdownItemTextSelected
-                  ]}>
-                    {displayKey ? item[displayKey] : item}
-                  </Text>
-                  {(valueKey ? item[valueKey] === value : item === value) && (
-                    <Icon name="check" size={20} color={COLORS.PRIMARY} />
-                  )}
-                </TouchableOpacity>
-              )}
+              data={filteredItems || []}
+              keyExtractor={(item, index) => (item && item[valueKey]) ? item[valueKey].toString() : index.toString()}
+              renderItem={({ item }) => {
+                if (!item) return null;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.dropdownItem,
+                      (valueKey ? item[valueKey] === value : item === value) && styles.dropdownItemSelected
+                    ]}
+                    onPress={() => handleSelect(item)}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      (valueKey ? item[valueKey] === value : item === value) && styles.dropdownItemTextSelected
+                    ]}>
+                      {getDisplayText(item)}
+                    </Text>
+                    {(valueKey ? item[valueKey] === value : item === value) && (
+                      <Icon name="check" size={20} color={COLORS.PRIMARY} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
               showsVerticalScrollIndicator={false}
               style={styles.dropdownList}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No options available</Text>
+                </View>
+              )}
             />
           </View>
         </TouchableOpacity>
@@ -271,6 +304,14 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: COLORS.PRIMARY,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+  },
+  emptyContainer: {
+    paddingVertical: SPACING.MD,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.GRAY_500,
   },
 });
 

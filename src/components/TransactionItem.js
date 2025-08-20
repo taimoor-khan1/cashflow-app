@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
+import { formatCurrency } from '../utils';
 
 const TransactionItem = ({ 
   transaction,
@@ -10,13 +11,6 @@ const TransactionItem = ({
   style 
 }) => {
   const { type, amount, category, notes, date, personName, attachment } = transaction;
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
