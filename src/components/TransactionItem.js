@@ -2,23 +2,53 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
-import { formatCurrency } from '../utils';
+import { formatCurrency, resolveCategoryName } from '../utils';
 
 const TransactionItem = ({ 
   transaction,
   onPress, 
   onAttachmentPress,
-  style 
+  style,
+  // Individual properties for backward compatibility
+  id,
+  type,
+  amount,
+  category,
+  notes,
+  date,
+  personName,
+  attachment,
+  title,
+  // Categories array for resolving category names
+  categories = []
 }) => {
-  const { type, amount, category, notes, date, personName, attachment } = transaction;
+  // Extract properties from transaction object if provided, otherwise use individual props
+  const transactionData = transaction || {};
+  const finalType = transactionData.type || type;
+  const finalAmount = transactionData.amount || amount;
+  const finalCategory = resolveCategoryName(transactionData.category || category, categories);
+  const finalNotes = transactionData.notes || notes;
+  const finalDate = transactionData.date || date;
+  const finalPersonName = transactionData.personName || personName;
+  const finalAttachment = transactionData.attachment || attachment;
+  const finalTitle = transactionData.title || title || finalCategory || 'Transaction';
+  console.log({finalCategory})
+
+  // Safety check - if no type is provided, don't render
+  if (!finalType) {
+    console.warn('TransactionItem: No type provided, skipping render');
+    return null;
+  }
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    if (!dateString) return 'No date';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
   };
 
   const getTransactionIcon = (type) => {
@@ -26,79 +56,84 @@ const TransactionItem = ({
   };
 
   const getTransactionColor = (type) => {
-    return type === 'income' ? COLORS.INCOME : COLORS.EXPENSE;
+    return type === 'income' ? COLORS.SUCCESS : COLORS.ERROR;
   };
 
   const getTransactionPrefix = (type) => {
     return type === 'income' ? '+' : '-';
   };
 
+  const handleAttachmentPress = () => {
+    if (onAttachmentPress && finalAttachment) {
+      // Validate attachment before calling handler
+      if (finalAttachment.uri || finalAttachment.url) {
+        onAttachmentPress(finalAttachment);
+      } else {
+        console.warn('Invalid attachment data:', finalAttachment);
+      }
+    }
+  };
+
   return (
-    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity 
+      style={[styles.container, style]} 
+      onPress={onPress || (() => console.log('TransactionItem: No onPress handler provided'))} 
+      activeOpacity={0.8}
+    >
       <View style={[
-        styles.iconContainer,
-        { backgroundColor: type === 'income' ? '#DCFCE7' : '#FEE2E2' }
+        styles.transactionIcon,
+        { backgroundColor: finalType === 'income' ? '#DCFCE7' : '#FEE2E2' }
       ]}>
         <Icon 
-          name={getTransactionIcon(type)} 
+          name={getTransactionIcon(finalType)} 
           size={20} 
-          color={getTransactionColor(type)} 
+          color={getTransactionColor(finalType)} 
         />
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.category}>{category}</Text>
-          <Text
-            style={[
-              styles.amount,
-              { color: getTransactionColor(type) },
-            ]}
-          >
-            {getTransactionPrefix(type)}
-            {formatCurrency(amount)}
-          </Text>
+      <View style={styles.transactionInfo}>
+        {/* Title - Most prominent */}
+        <Text style={styles.transactionTitle} numberOfLines={1}>
+          {finalTitle}
+        </Text>
+        
+        {/* Account name and category on same line */}
+        <View style={styles.personCategoryRow}>
+          <Text style={styles.transactionPerson}>{finalPersonName || 'Unknown'}</Text>
+          <Text style={styles.transactionCategory}> • {finalCategory || 'Other'}</Text>
         </View>
-
-        {notes && (
-          <Text style={styles.notes} numberOfLines={2}>
-            {notes}
+        
+        {/* Show notes if they exist */}
+        {finalNotes && finalNotes.trim() && (
+          <Text style={styles.transactionNotes} numberOfLines={1}>
+            {finalNotes}
           </Text>
         )}
-
-        {personName && (
-          <Text style={styles.personName}>
-            {personName}
-          </Text>
-        )}
-
-        {attachment && (
+        
+        {/* Show attachment indicator if it exists */}
+        {finalAttachment && (
           <TouchableOpacity 
-            style={styles.attachmentContainer} 
-            onPress={() => onAttachmentPress(attachment)}
+            style={styles.attachmentIndicator}
+            onPress={handleAttachmentPress}
             activeOpacity={0.7}
           >
-            <Icon name="attach-file" size={16} color={COLORS.PRIMARY} />
+            <Icon name="attach-file" size={14} color={COLORS.PRIMARY} />
             <Text style={styles.attachmentText}>Has attachment</Text>
           </TouchableOpacity>
         )}
+      </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.date}>{formatDate(date)}</Text>
-          <View style={[
-            styles.typeContainer,
-            { backgroundColor: type === 'income' ? '#DCFCE7' : '#FEE2E2' }
-          ]}>
-            <Text
-              style={[
-                styles.type,
-                { color: getTransactionColor(type) },
-              ]}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </Text>
-          </View>
-        </View>
+      <View style={styles.transactionAmount}>
+        <Text style={[
+          styles.transactionAmountText,
+          { color: getTransactionColor(finalType) }
+        ]}>
+          {getTransactionPrefix(finalType)}
+          {formatCurrency(finalAmount || 0)}
+        </Text>
+        <Text style={styles.transactionDate}>
+          {formatDate(finalDate)}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -107,78 +142,68 @@ const TransactionItem = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 12,
-    ...SHADOWS.MD,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.BORDER_LIGHT,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
-  content: {
+  transactionInfo: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  category: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+  transactionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: COLORS.TEXT_PRIMARY,
+    marginBottom: 4,
   },
-  amount: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
+  personCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
-  notes: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+  transactionCategory: {
+    fontSize: 14,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: 8,
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
-  personName: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+  transactionPerson: {
+    fontSize: 14,
+    color: COLORS.TEXT_SECONDARY,
+    fontWeight: '500',
+  },
+  transactionAmount: {
+    alignItems: 'flex-end',
+  },
+  transactionAmountText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  transactionDate: {
+    fontSize: 12,
     color: COLORS.TEXT_TERTIARY,
-    marginBottom: 8,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  transactionNotes: {
+    fontSize: 12,
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: 2,
   },
-  date: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_TERTIARY,
-  },
-  typeContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  type: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    textTransform: 'capitalize',
-  },
-  attachmentContainer: {
+  attachmentIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
+    marginTop: 2,
   },
   attachmentText: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
+    fontSize: 12,
     color: COLORS.PRIMARY,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    marginLeft: 4,
   },
 });
 

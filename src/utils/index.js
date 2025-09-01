@@ -24,6 +24,21 @@ export const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+/**
+ * Resolve category ID to category name
+ * @param {string} categoryId - The category ID to resolve
+ * @param {Array} categories - Array of category objects with id and name properties
+ * @returns {string} Category name or the original ID if not found
+ */
+export const resolveCategoryName = (categoryId, categories = []) => {
+  if (!categoryId || !Array.isArray(categories)) {
+    return categoryId || 'Other';
+  }
+  
+  const category = categories.find(cat => cat.id === categoryId);
+  return category ? category.name : categoryId;
+};
+
 // You can add more utility exports here as needed
 // export * from './stringUtils';
 // export * from './numberUtils';

@@ -6,24 +6,25 @@
  */
 
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
-import { SafeAreaView } from 'react-native';
+import { LogBox } from 'react-native';
 import { COLORS } from './src/constants';
 import { StatusBar } from 'react-native';
 
 const App = () => {
+  useEffect( () => {
+    LogBox.ignoreAllLogs();
+  }, [] );
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1 }}>
       <StatusBar
-          backgroundColor={COLORS.WHITE}
-          translucent={false}
-          barStyle="dark-content"
-        />
-        <AppNavigator />
-      </SafeAreaView>
+        backgroundColor={COLORS.WHITE}
+        translucent={false}
+        barStyle="dark-content"
+      />
+      <AppNavigator />
     </SafeAreaProvider>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,23 +8,24 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS, TYPOGRAPHY, SPACING, APP_CONFIG } from '../constants';
 import Card from '../components/Card';
 import CustomButton from '../components/CustomButton';
-import ScreenHeader from '../components/ScreenHeader';
+
+import { useAuth } from '../navigation/AppNavigator';
+import dataService from '../services/dataService';
 
 const SettingsScreen = ({ navigation }) => {
+  const { logout, currentUser } = useAuth();
   const [settings, setSettings] = useState({
     notifications: true,
-    darkMode: false,
-    language: 'English',
     currency: 'PKR',
-    privacy: true,
-    autoBackup: false,
   });
+  const [loading, setLoading] = useState(false);
 
   const handleSettingToggle = (key) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -44,40 +45,32 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const handleLanguageChange = () => {
-    Alert.alert(
-      'Change Language',
-      'Select your preferred language',
-      [
-        { text: 'English', onPress: () => setSettings(prev => ({ ...prev, language: 'English' })) },
-        { text: 'Spanish', onPress: () => setSettings(prev => ({ ...prev, language: 'Spanish' })) },
-        { text: 'French', onPress: () => setSettings(prev => ({ ...prev, language: 'French' })) },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+
+
+  const handleExportData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get all data from Firebase
+      const accounts = await dataService.getPersons();
+      const transactions = await dataService.getTransactions();
+      
+      // Show summary of data
+      Alert.alert(
+        'Data Summary',
+        `You have ${accounts.length} accounts and ${transactions.length} transactions.\n\nData is automatically backed up to your account.`,
+        [{ text: 'OK' }]
+      );
+      
+    } catch (error) {
+      console.error('Error getting data:', error);
+      Alert.alert('Error', 'Failed to retrieve data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleExportData = () => {
-    Alert.alert(
-      'Export Data',
-      'Your data will be exported as a CSV file and saved to your device.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => console.log('Exporting data...') },
-      ]
-    );
-  };
 
-  const handleImportData = () => {
-    Alert.alert(
-      'Import Data',
-      'Select a CSV file to import your data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Import', onPress: () => console.log('Importing data...') },
-      ]
-    );
-  };
 
   const handleClearData = () => {
     Alert.alert(
@@ -88,7 +81,48 @@ const SettingsScreen = ({ navigation }) => {
         { 
           text: 'Clear Data', 
           style: 'destructive',
-          onPress: () => console.log('Clearing data...') 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              
+              // Get all data to delete
+              const accounts = await dataService.getPersons();
+              const transactions = await dataService.getTransactions();
+              
+              // Delete all transactions first
+              for (const transaction of transactions) {
+                await dataService.deleteTransaction(transaction.id);
+              }
+              
+              // Delete all accounts
+              for (const account of accounts) {
+                await dataService.deletePerson(account.id);
+              }
+              
+              Alert.alert('Data Cleared', 'All your data has been permanently deleted.');
+              
+            } catch (error) {
+              console.error('Error clearing data:', error);
+              Alert.alert('Error', 'Failed to clear data. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: logout
         },
       ]
     );
@@ -124,22 +158,19 @@ const SettingsScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.BACKGROUND} />
       
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+          <Text style={styles.loadingText}>Processing...</Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Universal Header Component */}
-        <ScreenHeader
-          title="Settings"
-          subtitle="Customize your app experience"
-          variant="plain"
-          backgroundColor={COLORS.BACKGROUND}
-          onBack={() => navigation.goBack()}
-          style={styles.universalHeader}
-        />
-        
-        {/* Original Header Section - Kept for existing design */}
+        {/* Header Section */}
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
           <Text style={styles.subtitle}>Customize your app experience</Text>
@@ -156,35 +187,25 @@ const SettingsScreen = ({ navigation }) => {
             value={settings.notifications}
             onPress={() => handleSettingToggle('notifications')}
           />
+        </Card>
+
+        {/* Categories */}
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Categories</Text>
           
           <SettingItem
-            icon="dark-mode"
-            title="Dark Mode"
-            subtitle="Switch to dark theme"
-            value={settings.darkMode}
-            onPress={() => handleSettingToggle('darkMode')}
-          />
-          
-          <SettingItem
-            icon="fingerprint"
-            title="Biometric Authentication"
-            subtitle="Use fingerprint or face ID"
-            value={settings.biometricAuth}
-            onPress={() => handleSettingToggle('biometricAuth')}
-          />
-          
-          <SettingItem
-            icon="backup"
-            title="Auto Backup"
-            subtitle="Automatically backup your data"
-            value={settings.autoBackup}
-            onPress={() => handleSettingToggle('autoBackup')}
+            icon="category"
+            title="Manage Categories"
+            subtitle="Add, edit, and organize transaction categories"
+            value=""
+            onPress={() => navigation.navigate('CategoryManagement')}
+            type="action"
           />
         </Card>
 
-        {/* Localization */}
+        {/* Currency */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Localization</Text>
+          <Text style={styles.sectionTitle}>Currency</Text>
           
           <SettingItem
             icon="attach-money"
@@ -194,15 +215,6 @@ const SettingsScreen = ({ navigation }) => {
             onPress={handleCurrencyChange}
             type="select"
           />
-          
-          <SettingItem
-            icon="language"
-            title="Language"
-            subtitle="Select your preferred language"
-            value={settings.language}
-            onPress={handleLanguageChange}
-            type="select"
-          />
         </Card>
 
         {/* Data Management */}
@@ -210,20 +222,11 @@ const SettingsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Data Management</Text>
           
           <SettingItem
-            icon="file-download"
-            title="Export Data"
-            subtitle="Download your data as CSV"
+            icon="info"
+            title="Data Summary"
+            subtitle="View your data statistics"
             value=""
             onPress={handleExportData}
-            type="action"
-          />
-          
-          <SettingItem
-            icon="file-upload"
-            title="Import Data"
-            subtitle="Import data from CSV file"
-            value=""
-            onPress={handleImportData}
             type="action"
           />
           
@@ -233,6 +236,20 @@ const SettingsScreen = ({ navigation }) => {
             subtitle="Permanently delete all data"
             value=""
             onPress={handleClearData}
+            type="action"
+          />
+        </Card>
+
+        {/* Account */}
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          
+          <SettingItem
+            icon="logout"
+            title="Logout"
+            subtitle="Sign out of your account"
+            value=""
+            onPress={handleLogout}
             type="action"
           />
         </Card>
@@ -247,34 +264,9 @@ const SettingsScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Build</Text>
-            <Text style={styles.infoValue}>2024.01.001</Text>
+            <Text style={styles.infoLabel}>User</Text>
+            <Text style={styles.infoValue}>{currentUser?.email || 'Guest'}</Text>
           </View>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Support</Text>
-            <Text style={styles.infoValue}>{APP_CONFIG.SUPPORT_EMAIL}</Text>
-          </View>
-        </Card>
-
-        {/* Legal */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Legal</Text>
-          
-          <TouchableOpacity style={styles.legalItem}>
-            <Text style={styles.legalText}>Privacy Policy</Text>
-            <Icon name="open-in-new" size={20} color={COLORS.PRIMARY} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.legalItem}>
-            <Text style={styles.legalText}>Terms of Service</Text>
-            <Icon name="open-in-new" size={20} color={COLORS.PRIMARY} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.legalItem}>
-            <Text style={styles.legalText}>Licenses</Text>
-            <Icon name="chevron-right" size={20} color={COLORS.TEXT_TERTIARY} />
-          </TouchableOpacity>
         </Card>
       </ScrollView>
     </SafeAreaView>
@@ -323,14 +315,17 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.MD,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.BORDER_LIGHT,
+
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+
   },
   settingIcon: {
     marginRight: SPACING.MD,
+ 
   },
   settingText: {
     flex: 1,
@@ -340,11 +335,13 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
     marginBottom: SPACING.XS,
+    
   },
   settingSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL * TYPOGRAPHY.FONT_SIZE.SM,
+
+    
   },
   settingRight: {
     flexDirection: 'row',
@@ -384,13 +381,23 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.MD,
     color: COLORS.TEXT_PRIMARY,
   },
-  universalHeader: {
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 1,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
+  loadingText: {
+    marginTop: SPACING.MD,
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    color: COLORS.TEXT_SECONDARY,
+  },
+
 });
 
 export default SettingsScreen;

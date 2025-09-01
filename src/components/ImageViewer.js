@@ -16,6 +16,48 @@ const { width, height } = Dimensions.get('window');
 const ImageViewer = ({ visible, attachment, onClose }) => {
   if (!visible || !attachment) return null;
 
+  console.log('ImageViewer - Received attachment:', attachment);
+  console.log('ImageViewer - Attachment type:', typeof attachment);
+
+  // Handle different attachment data structures
+  const getImageSource = (attachment) => {
+    if (typeof attachment === 'string') {
+      console.log('ImageViewer - String attachment, using as URI');
+      return { uri: attachment };
+    }
+    
+    if (attachment && typeof attachment === 'object') {
+      if (attachment.uri) {
+        console.log('ImageViewer - Object with uri:', attachment.uri);
+        return { uri: attachment.uri };
+      }
+      if (attachment.url) {
+        console.log('ImageViewer - Object with url:', attachment.url);
+        return { uri: attachment.url };
+      }
+      if (attachment.path) {
+        console.log('ImageViewer - Object with path:', attachment.path);
+        return { uri: attachment.path };
+      }
+    }
+    
+    console.warn('ImageViewer - Invalid attachment data for ImageViewer:', attachment);
+    return null;
+  };
+
+  const imageSource = getImageSource(attachment);
+  
+  if (!imageSource) {
+    console.error('ImageViewer - Cannot display attachment - invalid source:', attachment);
+    return null;
+  }
+
+  // Additional safety check for the Image component
+  if (!imageSource.uri) {
+    console.error('ImageViewer - Image source has no URI:', imageSource);
+    return null;
+  }
+
   return (
     <Modal
       visible={visible}
@@ -33,7 +75,7 @@ const ImageViewer = ({ visible, attachment, onClose }) => {
         
         {/* Image */}
         <Image
-          source={{ uri: attachment.uri }}
+          source={imageSource}
           style={styles.image}
           resizeMode="contain"
         />

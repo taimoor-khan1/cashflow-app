@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,22 +17,95 @@ import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constant
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { useAuth } from '../navigation/AppNavigator';
+import dataService from '../services/dataService';
+import auth from '@react-native-firebase/auth';
 
 const EditProfileScreen = ({ navigation }) => {
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
   const [formData, setFormData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    bio: 'Financial enthusiast and app developer',
-    company: 'Tech Solutions Inc.',
-    position: 'Senior Developer',
-    location: 'San Francisco, CA',
-    website: 'https://johndoe.dev',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    bio: '',
+    company: '',
+    position: '',
+    location: '',
+    website: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    loadProfileData();
+  }, []);
+
+  const loadProfileData = async () => {
+    try {
+      setInitialLoading(true);
+      if (currentUser) {
+        const userId = currentUser.uid;
+        
+        // Try to load existing profile data from Firebase
+        try {
+          const profileSnapshot = await dataService.dbRefs.userProfile(userId).once('value');
+          const profileData = profileSnapshot.val();
+          
+          if (profileData) {
+            setFormData({
+              firstName: profileData.firstName || '',
+              lastName: profileData.lastName || '',
+              email: profileData.email || currentUser.email || '',
+              phone: profileData.phone || '',
+              bio: profileData.bio || '',
+              company: profileData.company || '',
+              position: profileData.position || '',
+              location: profileData.location || '',
+              website: profileData.website || '',
+            });
+          } else {
+            // Use current user data as fallback
+            const displayName = currentUser.displayName || '';
+            const [firstName = '', lastName = ''] = displayName.split(' ');
+            
+            setFormData({
+              firstName: firstName,
+              lastName: lastName,
+              email: currentUser.email || '',
+              phone: '',
+              bio: '',
+              company: '',
+              position: '',
+              location: '',
+              website: '',
+            });
+          }
+        } catch (firebaseError) {
+          console.error('Error loading profile from Firebase:', firebaseError);
+          // Fallback to current user data
+          const displayName = currentUser.displayName || '';
+          const [firstName = '', lastName = ''] = displayName.split(' ');
+          
+          setFormData({
+            firstName: firstName,
+            lastName: lastName,
+            email: currentUser.email || '',
+            phone: '',
+            bio: '',
+            company: '',
+            position: '',
+            location: '',
+            website: '',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile data:', error);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -71,8 +144,25 @@ const EditProfileScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Store profile data in Firebase Realtime Database
+      const userId = currentUser?.uid;
+      if (userId) {
+        const profileData = {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          bio: formData.bio.trim(),
+          company: formData.company.trim(),
+          position: formData.position.trim(),
+          location: formData.location.trim(),
+          website: formData.website.trim(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Store in Firebase Realtime Database under user profile
+        await dataService.dbRefs.userProfile(userId).set(profileData);
+      }
 
       // Success - navigate back
       Alert.alert(
@@ -86,6 +176,7 @@ const EditProfileScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
+      console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
@@ -106,7 +197,23 @@ const EditProfileScreen = ({ navigation }) => {
       'A password reset link will be sent to your email address.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Send Link', onPress: () => console.log('Password reset requested') },
+        { 
+          text: 'Send Link', 
+          onPress: async () => {
+            try {
+              if (currentUser?.email) {
+                // Firebase Auth password reset
+                await auth().sendPasswordResetEmail(currentUser.email);
+                Alert.alert('Success', 'Password reset email sent! Check your inbox.');
+              } else {
+                Alert.alert('Error', 'No email address found for this account.');
+              }
+            } catch (error) {
+              console.error('Password reset error:', error);
+              Alert.alert('Error', 'Failed to send password reset email. Please try again.');
+            }
+          }
+        },
       ]
     );
   };
@@ -120,9 +227,37 @@ const EditProfileScreen = ({ navigation }) => {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Account Deleted', 'Your account has been deleted.');
-            logout();
+          onPress: async () => {
+            try {
+              if (currentUser) {
+                // Delete all user data first
+                const userId = currentUser.uid;
+                
+                // Delete persons and transactions
+                const persons = await dataService.getPersons();
+                const transactions = await dataService.getTransactions();
+                
+                for (const transaction of transactions) {
+                  await dataService.deleteTransaction(transaction.id);
+                }
+                
+                for (const person of persons) {
+                  await dataService.deletePerson(person.id);
+                }
+                
+                // Delete user profile
+                await dataService.dbRefs.userProfile(userId).remove();
+                
+                // Delete Firebase Auth account
+                await currentUser.delete();
+                
+                Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+                logout();
+              }
+            } catch (error) {
+              console.error('Error deleting account:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
           }
         },
       ]
@@ -132,12 +267,8 @@ const EditProfileScreen = ({ navigation }) => {
   const handleChangeProfilePicture = () => {
     Alert.alert(
       'Change Profile Picture',
-      'Choose an option to update your profile picture',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Take Photo', onPress: () => console.log('Take photo') },
-        { text: 'Choose from Gallery', onPress: () => console.log('Choose from gallery') },
-      ]
+      'Profile picture functionality will be available in a future update with Firebase Storage integration.',
+      [{ text: 'OK' }]
     );
   };
 

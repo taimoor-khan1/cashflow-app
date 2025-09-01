@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,59 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, MOCK_DATA, SHADOWS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../constants';
 import PersonItem from '../components/PersonItem';
 import CustomButton from '../components/CustomButton';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import { useAuth } from '../navigation/AppNavigator';
 
 const PersonsListScreen = ({ navigation }) => {
-  const handleAddPerson = () => {
-    navigation.navigate('AddPerson');
+  const { currentUser } = useAuth();
+  const { 
+    personsWithStats: persons, 
+    loading, 
+    error, 
+    refreshData 
+  } = useRealTimeData();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    console.log('PersonsListScreen: useEffect triggered');
+  }, []);
+
+
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handlePersonPress = (personId) => {
+  const handleAddAccount = () => {
+    navigation.navigate('AddAccount');
+  };
+
+  const handleAccountPress = (personId) => {
+    console.log('Account pressed with ID:', personId);
+    console.log('Account ID type:', typeof personId);
+    console.log('Account ID value:', personId);
+    
     if (personId) {
-      navigation.navigate('PersonDetail', { personId });
+      console.log('Navigating to AccountDetail with ID:', personId);
+      navigation.navigate('AccountDetail', { personId });
+    } else {
+      console.error('Invalid account ID received:', personId);
+      Alert.alert('Error', 'Invalid account selected. Please try again.');
     }
   };
 
@@ -28,11 +66,41 @@ const PersonsListScreen = ({ navigation }) => {
     navigation.navigate('AddTransaction');
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Accounts</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddAccount}
+            >
+              <Icon name="account-balance" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+        
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading accounts...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
-      {/* Gradient Header */}
       <LinearGradient
         colors={COLORS.GRADIENT_PRIMARY}
         style={styles.header}
@@ -44,38 +112,39 @@ const PersonsListScreen = ({ navigation }) => {
           >
             <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Person Accounts</Text>
+          <Text style={styles.headerTitle}>Accounts</Text>
           <TouchableOpacity
             style={styles.addButton}
-            onPress={handleAddPerson}
+            onPress={handleAddAccount}
           >
-            <Icon name="person-add" size={24} color={COLORS.WHITE} />
+            <Icon name="account-balance" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
         </View>
-        
-        <Text style={styles.headerSubtitle}>
-          Manage your cash flow with friends, clients, and partners
-        </Text>
       </LinearGradient>
 
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        {MOCK_DATA.PERSONS.length > 0 ? (
+        {persons.length > 0 ? (
           <View style={styles.personsList}>
-            {MOCK_DATA.PERSONS.map((person) => (
+            {persons.map((person, index) => (
               <PersonItem
                 key={person.id}
                 id={person.id}
                 name={person.name}
                 notes={person.notes}
-                balance={person.balance}
-                totalIncome={person.totalIncome}
-                totalExpenses={person.totalExpenses}
-                transactionCount={person.transactionCount}
-                onPress={() => handlePersonPress(person.id)}
+                balance={person.balance || 0}
+                totalIncome={person.totalIncome || 0}
+                totalExpenses={person.totalExpenses || 0}
+                transactionCount={person.transactionCount || 0}
+                onPress={() => handleAccountPress(person.id)}
+                rank={index}
+                showRank={true}
               />
             ))}
           </View>
@@ -84,26 +153,33 @@ const PersonsListScreen = ({ navigation }) => {
             <View style={styles.emptyIconContainer}>
               <Text style={styles.emptyIcon}>👥</Text>
             </View>
-            <Text style={styles.emptyTitle}>No Person Accounts Yet</Text>
+            <Text style={styles.emptyTitle}>No Accounts Yet</Text>
             <Text style={styles.emptySubtitle}>
-              Start by adding your first person account to track cash flow
+              Start by adding your first account to track cash flow
             </Text>
             <CustomButton
-              title="Add First Person"
-              onPress={handleAddPerson}
+              title="Add First Account"
+              onPress={handleAddAccount}
               style={styles.emptyButton}
             />
           </View>
         )}
 
         {/* Quick Action Button */}
-        {MOCK_DATA.PERSONS.length > 0 && (
+        {persons.length > 0 && (
           <View style={styles.quickActionContainer}>
             <CustomButton
               title="Add Transaction"
               onPress={handleAddTransaction}
-              variant="secondary"
               style={styles.quickActionButton}
+              icon={
+                <Icon
+                  name="add"
+                  size={24}
+                  color={COLORS.WHITE}
+                  style={styles.quickActionIcon}
+                />
+              }
             />
           </View>
         )}
@@ -119,16 +195,14 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 20,
+    paddingHorizontal: SPACING.LG,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: SPACING.MD,
   },
   backButton: {
     width: 40,
@@ -155,22 +229,22 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    // lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 32,
+    padding: SPACING.LG,
   },
   personsList: {
-    gap: 16,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: 16,
+    ...SHADOWS.MD,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 20,
   },
   emptyIconContainer: {
     width: 80,
@@ -179,34 +253,46 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.GRAY_100,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.LG,
   },
   emptyIcon: {
     fontSize: 40,
   },
   emptyTitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    fontSize: TYPOGRAPHY.FONT_SIZE.XL,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: 8,
+    marginBottom: SPACING.SM,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
     textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
+    marginBottom: SPACING.XL,
+    lineHeight: 20,
   },
   emptyButton: {
-    paddingHorizontal: 32,
+    backgroundColor: COLORS.PRIMARY,
   },
   quickActionContainer: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: SPACING.XL,
+    paddingHorizontal: SPACING.MD,
   },
   quickActionButton: {
-    borderRadius: 16,
+    backgroundColor: COLORS.SECONDARY,
+  },
+  quickActionIcon: {
+    marginRight: SPACING.SM,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    color: COLORS.TEXT_SECONDARY,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,25 +6,55 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
-  Alert,
+  Image,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import { formatCurrency } from '../utils';
 import CustomButton from '../components/CustomButton';
+import Card from '../components/Card';
 import TransactionItem from '../components/TransactionItem';
 import ImageViewer from '../components/ImageViewer';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import { useAuth } from '../navigation/AppNavigator';
+import Modal from '../components/Modal';
+import { useToast } from '../contexts/ToastContext';
+import dataService from '../services/dataService';
 
 const PersonDetailScreen = ({ navigation, route }) => {
+  console.log('PersonDetailScreen: Component rendering...');
+  
   const { personId } = route.params;
+  console.log('PersonDetailScreen: personId from route:', personId);
+  
+  const { currentUser } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const { 
+    persons, 
+    transactions, 
+    loading, 
+    error: hookError, 
+    refreshData 
+  } = useRealTimeData();
+  
+  const [refreshing, setRefreshing] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  // Get person and their transactions from the hook data
+  const person = persons.find(p => p.id === personId);
+  const personTransactions = transactions.filter(t => t.personId === personId);
   
   // Add safety check for personId
   if (!personId) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Invalid person ID</Text>
+          <Text style={styles.errorText}>Invalid account ID</Text>
           <CustomButton
             title="Go Back"
             onPress={() => navigation.goBack()}
@@ -34,64 +64,77 @@ const PersonDetailScreen = ({ navigation, route }) => {
       </View>
     );
   }
-  
-  const [person] = useState(MOCK_DATA.PERSONS.find(p => p.id === personId));
-  const [transactions] = useState(
-    MOCK_DATA.TRANSACTIONS.filter(t => t.personId === personId)
-  );
-  const [showImageViewer, setShowImageViewer] = useState(false);
-  const [selectedAttachment, setSelectedAttachment] = useState(null);
 
-  if (!person) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Person not found</Text>
-          <CustomButton
-            title="Go Back"
-            onPress={() => navigation.goBack()}
-            style={styles.errorButton}
-          />
-        </View>
-      </View>
-    );
-  }
+  useEffect(() => {
+    console.log('PersonDetailScreen: useEffect triggered with personId:', personId);
+    loadCategories();
+  }, [personId]);
+
+  const loadCategories = async () => {
+    try {
+      const categoriesList = await dataService.getCategories();
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleAddTransaction = () => {
     navigation.navigate('AddTransaction', { personId });
   };
 
   const handleEditPerson = () => {
-    navigation.navigate('EditPerson', { personId: person.id });
+    navigation.navigate('EditAccount', { personId: person.id });
   };
 
   const handleDeletePerson = () => {
-    Alert.alert(
-      'Delete Person',
-      `Are you sure you want to delete ${person.name}? This will also delete all associated transactions.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Handle deletion
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePerson = async () => {
+    try {
+      // Import dataService here to avoid circular dependencies
+      const dataService = require('../services/dataService').default;
+      await dataService.deletePerson(personId);
+      showSuccess('Account deleted successfully!');
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      showError('Failed to delete account. Please try again.');
+    }
   };
 
   const handleTransactionPress = (transactionId) => {
+    // Validate transaction ID before navigation
+    if (!transactionId) {
+      console.error('Invalid transaction ID:', transactionId);
+      showError('Invalid transaction selected. Please try again.');
+      return;
+    }
+    
+    console.log('Navigating to transaction detail with ID:', transactionId);
     // Navigate to transaction detail or edit
     navigation.navigate('TransactionDetail', { transactionId });
   };
 
   const handleAttachmentPress = (attachment) => {
+    // Validate attachment before showing image viewer
+    if (!attachment) {
+      console.error('Invalid attachment:', attachment);
+      return;
+    }
+    
     setSelectedAttachment(attachment);
     setShowImageViewer(true);
   };
@@ -99,10 +142,121 @@ const PersonDetailScreen = ({ navigation, route }) => {
   const getBalanceColor = (balance) => (balance >= 0 ? COLORS.SUCCESS : COLORS.ERROR);
   const getBalancePrefix = (balance) => (balance >= 0 ? '+' : '');
 
+  // Show error state
+  if (hookError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Account Details</Text>
+            <View style={styles.placeholderButton} />
+          </View>
+        </LinearGradient>
+        
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{hookError}</Text>
+          <CustomButton
+            title="Try Again"
+            onPress={refreshData}
+            style={styles.errorButton}
+          />
+          <CustomButton
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            style={[styles.errorButton, { marginTop: 10 }]}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Account Details</Text>
+            <View style={styles.placeholderButton} />
+          </View>
+        </LinearGradient>
+        
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading account details...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show person not found state
+  if (!person) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Account Details</Text>
+            <View style={styles.placeholderButton} />
+          </View>
+        </LinearGradient>
+        
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Account not found</Text>
+          <CustomButton
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            style={styles.errorButton}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // Calculate person stats
+  const totalIncome = personTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+  
+  const totalExpenses = personTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+  
+  const balance = totalIncome - totalExpenses;
+
+  console.log('PersonDetailScreen: Rendering main component');
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+      
       {/* Gradient Header */}
       <LinearGradient
         colors={COLORS.GRADIENT_PRIMARY}
@@ -116,22 +270,20 @@ const PersonDetailScreen = ({ navigation, route }) => {
             <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{person.name}</Text>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => {
-              Alert.alert(
-                'Person Options',
-                'Choose an action',
-                [
-                  { text: 'Edit', onPress: handleEditPerson },
-                  { text: 'Delete', onPress: handleDeletePerson, style: 'destructive' },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
-            }}
-          >
-            <Icon name="more-vert" size={24} color={COLORS.WHITE} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={handleEditPerson}
+            >
+              <Icon name="edit" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={handleDeletePerson}
+            >
+              <Icon name="delete" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+          </View>
         </View>
         
         <Text style={styles.headerSubtitle}>
@@ -143,88 +295,159 @@ const PersonDetailScreen = ({ navigation, route }) => {
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        {/* Person Info Card */}
-        <View style={styles.infoCard}>
-          <View style={styles.avatarContainer}>
-            <View style={[styles.avatar, { backgroundColor: COLORS.PRIMARY }]}>
-              <Text style={styles.avatarText}>
-                {person.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          </View>
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Current Balance</Text>
+          <Text style={[styles.balanceAmount, { color: getBalanceColor(balance) }]}>
+            {getBalancePrefix(balance)}{formatCurrency(Math.abs(balance))}
+          </Text>
+        </View>
 
-          <View style={styles.balanceSection}>
-            <Text style={styles.balanceLabel}>Current Balance</Text>
-            <Text style={[styles.balanceAmount, { color: getBalanceColor(person.balance) }]}>
-              {getBalancePrefix(person.balance)}
-              {formatCurrency(Math.abs(person.balance))}
-            </Text>
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Icon name="trending-up" size={24} color={COLORS.SUCCESS} />
+            <Text style={styles.statValue}>{formatCurrency(totalIncome)}</Text>
+            <Text style={styles.statLabel}>Total Income</Text>
           </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Icon name="trending-up" size={20} color={COLORS.SUCCESS} />
-              <Text style={styles.statValue}>+{formatCurrency(person.totalIncome)}</Text>
-              <Text style={styles.statLabel}>Total Income</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="trending-down" size={20} color={COLORS.ERROR} />
-              <Text style={styles.statValue}>-{formatCurrency(person.totalExpenses)}</Text>
-              <Text style={styles.statLabel}>Total Expenses</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="receipt" size={20} color={COLORS.PRIMARY} />
-              <Text style={styles.statValue}>{person.transactionCount}</Text>
-              <Text style={styles.statLabel}>Transactions</Text>
-            </View>
+          
+          <View style={styles.statCard}>
+            <Icon name="trending-down" size={24} color={COLORS.ERROR} />
+            <Text style={styles.statValue}>{formatCurrency(totalExpenses)}</Text>
+            <Text style={styles.statLabel}>Total Expenses</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <Icon name="receipt" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.statValue}>{personTransactions.length}</Text>
+            <Text style={styles.statLabel}>Transactions</Text>
           </View>
         </View>
 
-        {/* Actions */}
-        <View style={styles.actionsSection}>
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
           <CustomButton
             title="Add Transaction"
             onPress={handleAddTransaction}
             style={styles.addTransactionButton}
+            icon={
+              <Icon
+                name="add"
+                size={24}
+                color={COLORS.WHITE}
+                style={styles.buttonIcon}
+              />
+            }
           />
         </View>
 
-        {/* Transactions */}
+        {/* Transactions Section */}
         <View style={styles.transactionsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              Recent Transactions ({transactions.length})
+              Recent Transactions ({personTransactions.length})
             </Text>
           </View>
-
-          {transactions.length > 0 ? (
+          
+          {personTransactions.length > 0 ? (
             <View style={styles.transactionsList}>
-              {transactions.map((transaction) => (
-                <TransactionItem
-                  key={transaction.id}
-                  transaction={transaction}
-                  onPress={() => handleTransactionPress(transaction.id)}
-                  onAttachmentPress={handleAttachmentPress}
-                />
-              ))}
+              {(() => {
+                console.log('PersonDetailScreen: Rendering transactions, count:', personTransactions.length);
+                try {
+                  return personTransactions
+                    .filter(transaction => {
+                      const isValid = transaction && transaction.id && transaction.type;
+                      if (!isValid) {
+                        console.warn('PersonDetailScreen: Filtering out invalid transaction:', transaction);
+                      }
+                      return isValid;
+                    })
+                    .sort((a, b) => {
+                      try {
+                        const dateA = new Date(a.date || 0);
+                        const dateB = new Date(b.date || 0);
+                        return dateB - dateA;
+                      } catch (error) {
+                        console.warn('PersonDetailScreen: Error sorting transaction dates:', error);
+                        return 0;
+                      }
+                    })
+                    .slice(0, 10)
+                    .map((transaction, index) => {
+                      console.log(`PersonDetailScreen: Rendering transaction ${index}:`, transaction.id, transaction.type);
+                      
+                      // Additional safety check for each transaction
+                      if (!transaction || !transaction.id || !transaction.type) {
+                        console.warn('PersonDetailScreen: Skipping invalid transaction:', transaction);
+                        return null;
+                      }
+                      
+                      try {
+                        return (
+                          <TransactionItem
+                            key={transaction.id}
+                            id={transaction.id}
+                            type={transaction.type}
+                            amount={transaction.amount || 0}
+                            category={transaction.category || 'Other'}
+                            notes={transaction.notes || ''}
+                            date={transaction.date || new Date().toISOString().split('T')[0]}
+                            personName={transaction.personName || person?.name || 'Unknown'}
+                            attachment={transaction.attachment}
+                            categories={categories}
+                            onPress={() => handleTransactionPress(transaction.id)}
+                            onAttachmentPress={handleAttachmentPress}
+                          />
+                        );
+                      } catch (error) {
+                        console.error('PersonDetailScreen: Error rendering TransactionItem:', error, transaction);
+                        return null;
+                      }
+                    })
+                    .filter(Boolean);
+                } catch (error) {
+                  console.error('PersonDetailScreen: Error in transactions rendering logic:', error);
+                  return null;
+                }
+              })()}
             </View>
           ) : (
-            <View style={styles.emptyState}>
+            <View style={styles.emptyTransactions}>
               <Icon name="receipt" size={48} color={COLORS.GRAY_400} />
-              <Text style={styles.emptyStateTitle}>No Transactions Yet</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                Start by adding your first transaction with {person.name}
+              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
+              <Text style={styles.emptyTransactionsSubtext}>
+                Add your first transaction to start tracking
               </Text>
             </View>
           )}
         </View>
       </ScrollView>
 
-      <ImageViewer
-        visible={showImageViewer}
-        attachment={selectedAttachment}
-        onClose={() => setShowImageViewer(false)}
+      {/* Image Viewer Modal */}
+      {showImageViewer && selectedAttachment && (
+        <ImageViewer
+          visible={showImageViewer}
+          imageUri={selectedAttachment}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Account"
+        message={`Are you sure you want to delete ${person?.name}? This will also delete all associated transactions.`}
+        type="warning"
+        confirmText="Delete"
+        cancelText="Cancel"
+        showCancel={true}
+        onConfirm={confirmDeletePerson}
+        onCancel={() => setShowDeleteModal(false)}
       />
     </View>
   );
@@ -237,22 +460,20 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 20,
+    paddingHorizontal: SPACING.LG,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: SPACING.MD,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -263,91 +484,85 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  menuButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: SPACING.SM,
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.WHITE,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 32,
+    padding: SPACING.LG,
   },
-  infoCard: {
+  balanceCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
+    borderRadius: BORDER_RADIUS.LG,
+    padding: SPACING.XL,
+    marginBottom: SPACING.LG,
     alignItems: 'center',
     ...SHADOWS.MD,
-  },
-  avatarContainer: {
-    marginBottom: 20,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.WHITE,
-  },
-  balanceSection: {
-    alignItems: 'center',
-    marginBottom: 24,
   },
   balanceLabel: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: 8,
+    marginBottom: SPACING.SM,
   },
   balanceAmount: {
     fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
   },
-  statsRow: {
+  statsGrid: {
     flexDirection: 'row',
-    gap: 20,
+    gap: SPACING.MD,
+    marginBottom: SPACING.LG,
   },
-  statItem: {
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: BORDER_RADIUS.MD,
+    padding: SPACING.MD,
     alignItems: 'center',
-    gap: 6,
+    ...SHADOWS.SMALL,
   },
   statValue: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
     color: COLORS.TEXT_PRIMARY,
+    marginTop: SPACING.SM,
+    marginBottom: SPACING.XS,
   },
   statLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
   },
-  actionsSection: {
-    marginBottom: 24,
+  quickActions: {
+    marginBottom: SPACING.LG,
   },
   addTransactionButton: {
-    borderRadius: 16,
+    backgroundColor: COLORS.PRIMARY,
+  },
+  buttonIcon: {
+    marginRight: SPACING.SM,
   },
   transactionsSection: {
-    marginBottom: 24,
+    marginBottom: SPACING.LG,
   },
   sectionHeader: {
-    marginBottom: 16,
+    marginBottom: SPACING.MD,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
@@ -355,41 +570,56 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT_PRIMARY,
   },
   transactionsList: {
-    gap: 12,
+    gap: SPACING.MD,
   },
-  emptyState: {
+  emptyTransactions: {
     alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingVertical: SPACING.XL,
   },
-  emptyStateTitle: {
+  emptyTransactionsText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
+    marginTop: SPACING.MD,
+    marginBottom: SPACING.SM,
+  },
+  emptyTransactionsSubtext: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.TEXT_TERTIARY,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.XL,
   },
   errorText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     color: COLORS.ERROR,
-    marginBottom: 24,
+    marginBottom: SPACING.LG,
     textAlign: 'center',
   },
   errorButton: {
-    paddingHorizontal: 32,
+    backgroundColor: COLORS.PRIMARY,
+  },
+  errorButtonText: {
+    color: COLORS.WHITE,
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    color: COLORS.TEXT_SECONDARY,
+  },
+  placeholderButton: {
+    width: 40,
+    height: 40,
   },
 });
 

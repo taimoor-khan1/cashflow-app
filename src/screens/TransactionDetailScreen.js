@@ -6,8 +6,8 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
-  Alert,
   Image,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -15,30 +15,209 @@ import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constant
 import { formatCurrency } from '../utils';
 import CustomButton from '../components/CustomButton';
 import ImageViewer from '../components/ImageViewer';
-import ScreenHeader from '../components/ScreenHeader';
+import Modal from '../components/Modal';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import { useAuth } from '../navigation/AppNavigator';
+import { useToast } from '../contexts/ToastContext';
+import dataService from '../services/dataService';
+import { resolveCategoryName } from '../utils';
 
 const TransactionDetailScreen = ({ navigation, route }) => {
   const { transactionId } = route.params;
+  const { currentUser } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const { 
+    transactions, 
+    persons, 
+    loading, 
+    error: hookError, 
+    refreshData 
+  } = useRealTimeData();
   
-  const [transaction, setTransaction] = useState(null);
-  const [person, setPerson] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  // Get transaction and person from the hook data
+  const transaction = transactions.find(t => t.id === transactionId);
+  const person = transaction ? persons.find(p => p.id === transaction.personId) : null;
 
   useEffect(() => {
     if (transactionId) {
-      const foundTransaction = MOCK_DATA.TRANSACTIONS.find(t => t.id === transactionId);
-      if (foundTransaction) {
-        setTransaction(foundTransaction);
-        const foundPerson = MOCK_DATA.PERSONS.find(p => p.id === foundTransaction.personId);
-        setPerson(foundPerson);
-      }
+      console.log('TransactionDetailScreen: useEffect triggered with transactionId:', transactionId);
+      loadCategories();
     }
   }, [transactionId]);
+
+  const loadCategories = async () => {
+    try {
+      const categoriesList = await dataService.getCategories();
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleEditTransaction = () => {
+    navigation.navigate('AddTransaction', { 
+      transactionId,
+      person: person,
+      isEditing: true 
+    });
+  };
+
+  const handleDeleteTransaction = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    try {
+      // Import dataService here to avoid circular dependencies
+      const dataService = require('../services/dataService').default;
+      await dataService.deleteTransaction(transactionId);
+      showSuccess('Transaction deleted successfully!');
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      showError('Failed to delete transaction. Please try again.');
+    }
+  };
+
+  const handleAttachmentPress = () => {
+    if (transaction?.attachment) {
+      console.log('TransactionDetailScreen - Attachment data:', transaction.attachment);
+      console.log('TransactionDetailScreen - Attachment type:', typeof transaction.attachment);
+      console.log('TransactionDetailScreen - Attachment keys:', Object.keys(transaction.attachment || {}));
+      setSelectedAttachment(transaction.attachment);
+      setShowImageViewer(true);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.warn('Error formatting date:', dateString, error);
+      return 'Invalid Date';
+    }
+  };
+
+  const getTransactionIcon = (type) => {
+    return type === 'income' ? 'trending-up' : 'trending-down';
+  };
+
+  const getTransactionColor = (type) => {
+    return type === 'income' ? COLORS.SUCCESS : COLORS.ERROR;
+  };
+
+  // Show error state
+  if (hookError) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Transaction Details</Text>
+            <View style={styles.headerActions} />
+          </View>
+        </LinearGradient>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{hookError}</Text>
+          <CustomButton
+            title="Try Again"
+            onPress={refreshData}
+            style={styles.errorButton}
+          />
+          <CustomButton
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            style={[styles.errorButton, { marginTop: 10 }]}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Loading...</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.headerButton}>
+                <Icon name="edit" size={24} color={COLORS.WHITE} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerButton}>
+                <Icon name="delete" size={24} color={COLORS.WHITE} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading transaction details...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!transaction) {
     return (
       <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={COLORS.GRADIENT_PRIMARY}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Transaction Not Found</Text>
+            <View style={styles.headerActions} />
+          </View>
+        </LinearGradient>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Transaction not found</Text>
           <CustomButton
@@ -51,64 +230,10 @@ const TransactionDetailScreen = ({ navigation, route }) => {
     );
   }
 
-  const handleEditTransaction = () => {
-    navigation.navigate('AddTransaction', { 
-      transactionId,
-      person: person,
-      isEditing: true 
-    });
-  };
-
-  const handleDeleteTransaction = () => {
-    Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Handle deletion
-            navigation.goBack();
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAttachmentPress = () => {
-    if (transaction.attachment) {
-      setSelectedAttachment(transaction.attachment);
-      setShowImageViewer(true);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getTransactionIcon = (type) => {
-    return type === 'income' ? 'trending-up' : 'trending-down';
-  };
-
-  const getTransactionColor = (type) => {
-    return type === 'income' ? COLORS.SUCCESS : COLORS.ERROR;
-  };
-
-  const getTransactionPrefix = (type) => {
-    return type === 'income' ? '+' : '-';
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+      
       {/* Gradient Header */}
       <LinearGradient
         colors={COLORS.GRADIENT_PRIMARY}
@@ -122,22 +247,20 @@ const TransactionDetailScreen = ({ navigation, route }) => {
             <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transaction Details</Text>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => {
-              Alert.alert(
-                'Transaction Options',
-                'Choose an action',
-                [
-                  { text: 'Edit', onPress: handleEditTransaction },
-                  { text: 'Delete', onPress: handleDeleteTransaction, style: 'destructive' },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
-            }}
-          >
-            <Icon name="more-vert" size={24} color={COLORS.WHITE} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={handleEditTransaction}
+            >
+              <Icon name="edit" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={handleDeleteTransaction}
+            >
+              <Icon name="delete" size={24} color={COLORS.WHITE} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -145,106 +268,157 @@ const TransactionDetailScreen = ({ navigation, route }) => {
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        {/* Transaction Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={[
-            styles.iconContainer,
-            { backgroundColor: getTransactionColor(transaction.type) === COLORS.SUCCESS ? COLORS.SUCCESS_LIGHT : COLORS.ERROR_LIGHT }
-          ]}>
-            <Icon 
-              name={getTransactionIcon(transaction.type)} 
-              size={32} 
-              color={getTransactionColor(transaction.type)} 
-            />
+        {/* Transaction Card */}
+        <View style={styles.transactionCard}>
+          <View style={styles.transactionHeader}>
+            <View style={[
+              styles.transactionIcon,
+              { backgroundColor: getTransactionColor(transaction.type) + '20' }
+            ]}>
+              <Icon
+                name={getTransactionIcon(transaction.type)}
+                size={32}
+                color={getTransactionColor(transaction.type)}
+              />
+            </View>
+            <View style={styles.transactionInfo}>
+              <Text style={styles.transactionType}>
+                {transaction.type === 'income' ? 'Income' : 'Expense'}
+              </Text>
+              <Text style={[
+                styles.transactionAmount,
+                { color: getTransactionColor(transaction.type) }
+              ]}>
+                {transaction.type === 'income' ? '+' : '-'}
+                {formatCurrency(transaction.amount)}
+              </Text>
+            </View>
           </View>
-          
-          <Text style={styles.transactionType}>
-            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-          </Text>
-          
-          <Text style={[
-            styles.amount,
-            { color: getTransactionColor(transaction.type) }
-          ]}>
-            {getTransactionPrefix(transaction.type)}
-            {formatCurrency(transaction.amount)}
-          </Text>
-          
-          <Text style={styles.category}>{transaction.category}</Text>
         </View>
 
-        {/* Transaction Details */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Transaction Details</Text>
+        {/* Details Grid */}
+        <View style={styles.detailsGrid}>
+          <View style={styles.detailCard}>
+            <Icon name="category" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.detailLabel}>Category</Text>
+            <Text style={styles.detailValue}>{resolveCategoryName(transaction.category, categories) || 'Other'}</Text>
+          </View>
           
-          <View style={styles.detailRow}>
-            <Icon name="person" size={20} color={COLORS.PRIMARY} />
-            <Text style={styles.detailLabel}>Person</Text>
+          <View style={styles.detailCard}>
+            <Icon name="account-balance" size={24} color={COLORS.SECONDARY} />
+            <Text style={styles.detailLabel}>Account</Text>
             <Text style={styles.detailValue}>{person?.name || 'Unknown'}</Text>
           </View>
           
-          <View style={styles.detailRow}>
-            <Icon name="event" size={20} color={COLORS.PRIMARY} />
+          <View style={styles.detailCard}>
+            <Icon name="event" size={24} color={COLORS.INFO} />
             <Text style={styles.detailLabel}>Date</Text>
             <Text style={styles.detailValue}>{formatDate(transaction.date)}</Text>
           </View>
           
-          {transaction.notes && (
-            <View style={styles.detailRow}>
-              <Icon name="note" size={20} color={COLORS.PRIMARY} />
-              <Text style={styles.detailLabel}>Notes</Text>
-              <Text style={styles.detailValue}>{transaction.notes}</Text>
-            </View>
-          )}
+          <View style={styles.detailCard}>
+            <Icon name="schedule" size={24} color={COLORS.WARNING} />
+            <Text style={styles.detailLabel}>Created</Text>
+            <Text style={styles.detailValue}>
+              {transaction.createdAt ? formatDate(transaction.createdAt) : 'Unknown'}
+            </Text>
+          </View>
         </View>
 
-        {/* Attachment Section */}
-        {transaction.attachment && (
-          <View style={styles.attachmentCard}>
-            <Text style={styles.sectionTitle}>Attachment</Text>
-            
-            <TouchableOpacity
-              style={styles.attachmentPreview}
-              onPress={handleAttachmentPress}
-              activeOpacity={0.8}
-            >
-              <Image 
-                source={{ uri: transaction.attachment.uri }} 
-                style={styles.attachmentImage} 
-              />
-              <View style={styles.attachmentOverlay}>
-                <Icon name="visibility" size={24} color={COLORS.WHITE} />
-                <Text style={styles.attachmentText}>Tap to view</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <Text style={styles.attachmentName}>{transaction.attachment.name}</Text>
+        {/* Notes Section */}
+        {transaction.notes && (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionTitle}>Notes</Text>
+            <View style={styles.notesCard}>
+              <Text style={styles.notesText}>{transaction.notes}</Text>
+            </View>
           </View>
         )}
 
-        {/* Actions */}
-        <View style={styles.actionsSection}>
+        {/* Attachment Section */}
+        {transaction.attachment && (
+          <View style={styles.attachmentSection}>
+            <Text style={styles.sectionTitle}>Attachment</Text>
+            <TouchableOpacity
+              style={styles.attachmentCard}
+              onPress={handleAttachmentPress}
+            >
+              {(transaction.attachment?.uri || transaction.attachment?.url || transaction.attachment) ? (
+                <Image
+                  source={{ uri: transaction.attachment?.uri || transaction.attachment?.url || transaction.attachment }}
+                  style={styles.attachmentImage}
+                  resizeMode="cover"
+                  onError={(error) => console.error('Image loading error:', error)}
+                />
+              ) : (
+                <View style={[styles.attachmentImage, { backgroundColor: COLORS.GRAY_200, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Icon name="image" size={32} color={COLORS.GRAY_400} />
+                </View>
+              )}
+              <View style={styles.attachmentOverlay}>
+                <Icon name="zoom-in" size={32} color={COLORS.WHITE} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
           <CustomButton
             title="Edit Transaction"
             onPress={handleEditTransaction}
-            variant="outline"
             style={styles.editButton}
+            icon={
+              <Icon
+                name="edit"
+                size={24}
+                color={COLORS.WHITE}
+                style={styles.buttonIcon}
+              />
+            }
           />
           
           <CustomButton
             title="Delete Transaction"
             onPress={handleDeleteTransaction}
-            variant="outline"
             style={styles.deleteButton}
+            icon={
+              <Icon
+                name="delete"
+                size={24}
+                color={COLORS.WHITE}
+                style={styles.buttonIcon}
+              />
+            }
           />
         </View>
       </ScrollView>
 
-      <ImageViewer
-        visible={showImageViewer}
-        attachment={selectedAttachment}
-        onClose={() => setShowImageViewer(false)}
+      {/* Image Viewer Modal */}
+      {showImageViewer && selectedAttachment && (
+        <ImageViewer
+          visible={showImageViewer}
+          attachment={selectedAttachment}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This action cannot be undone."
+        type="warning"
+        confirmText="Delete"
+        cancelText="Cancel"
+        showCancel={true}
+        onConfirm={confirmDeleteTransaction}
+        onCancel={() => setShowDeleteModal(false)}
       />
     </View>
   );
@@ -257,36 +431,44 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 20,
+    paddingHorizontal: SPACING.LG,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    position: 'relative',
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
     color: COLORS.WHITE,
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
+    zIndex: 0,
   },
-  menuButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: SPACING.SM,
+    zIndex: 1,
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.SEMI_TRANSPARENT_WHITE,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -294,88 +476,101 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 32,
+    padding: SPACING.LG,
   },
-  summaryCard: {
+  transactionCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.LG,
+    padding: SPACING.XL,
+
+    marginBottom: SPACING.LG,
     ...SHADOWS.MD,
   },
-  iconContainer: {
+  transactionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.LG,
+  },
+  transactionIcon: {
     width: 64,
     height: 64,
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+  },
+  transactionInfo: {
+    flex: 1,
   },
   transactionType: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: COLORS.TEXT_SECONDARY,
-    marginBottom: 8,
-    textTransform: 'capitalize',
+    marginBottom: SPACING.XS,
   },
-  amount: {
-    fontSize: TYPOGRAPHY.FONT_SIZE['3XL'],
+  transactionAmount: {
+    fontSize: TYPOGRAPHY.FONT_SIZE['2XL'],
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    marginBottom: 8,
   },
-  category: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.MD,
+    marginBottom: SPACING.LG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailCard: {
+    width: '45%',
+    backgroundColor: COLORS.WHITE,
+    borderRadius: BORDER_RADIUS.MD,
+    padding: SPACING.MD,
+    alignItems: 'center',
+    ...SHADOWS.SMALL,
+  },
+  detailLabel: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: SPACING.SM,
+    marginBottom: SPACING.XS,
+    textAlign: 'center',
+  },
+  detailValue: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
+    textAlign: 'center',
   },
-  detailsCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    ...SHADOWS.MD,
+  notesSection: {
+    marginBottom: SPACING.LG,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: 20,
+    marginBottom: SPACING.MD,
   },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+  notesCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: BORDER_RADIUS.MD,
+    padding: SPACING.MD,
+    ...SHADOWS.SMALL,
   },
-  detailLabel: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-    color: COLORS.TEXT_SECONDARY,
-    minWidth: 60,
-  },
-  detailValue: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+  notesText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.MD,
     color: COLORS.TEXT_PRIMARY,
-    textAlign: 'right',
+    lineHeight: 24,
+  },
+  attachmentSection: {
+    marginBottom: SPACING.LG,
   },
   attachmentCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    ...SHADOWS.MD,
-  },
-  attachmentPreview: {
-    position: 'relative',
-    marginBottom: 12,
+    borderRadius: BORDER_RADIUS.MD,
+    overflow: 'hidden',
+    ...SHADOWS.SMALL,
   },
   attachmentImage: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
   },
   attachmentOverlay: {
     position: 'absolute',
@@ -383,46 +578,45 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.OVERLAY,
-    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  attachmentText: {
-    color: COLORS.WHITE,
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
-  },
-  attachmentName: {
-    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
-    textAlign: 'center',
-  },
-  actionsSection: {
-    gap: 12,
+  quickActions: {
+    gap: SPACING.MD,
   },
   editButton: {
-    borderRadius: 16,
+    backgroundColor: COLORS.PRIMARY,
   },
   deleteButton: {
-    borderRadius: 16,
-    borderColor: COLORS.ERROR,
+    backgroundColor: COLORS.ERROR,
+  },
+  buttonIcon: {
+    marginRight: SPACING.SM,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.XL,
   },
   errorText: {
     fontSize: TYPOGRAPHY.FONT_SIZE.LG,
     color: COLORS.ERROR,
-    marginBottom: 24,
+    marginBottom: SPACING.LG,
     textAlign: 'center',
   },
   errorButton: {
-    paddingHorizontal: 32,
+    backgroundColor: COLORS.PRIMARY,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.LG,
+    color: COLORS.TEXT_SECONDARY,
   },
 });
 

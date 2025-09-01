@@ -7,15 +7,15 @@ export const SCREENS = {
   
   // Main App
   DASHBOARD: 'Dashboard',
-  PERSONS: 'Persons',
-  PERSONS_LIST: 'PersonsList',
+  ACCOUNTS: 'Accounts',
+  ACCOUNTS_LIST: 'AccountsList',
   REPORTS: 'Reports',
   PROFILE: 'Profile',
   
-  // Person Screens
-  ADD_PERSON: 'AddPerson',
-  EDIT_PERSON: 'EditPerson',
-  PERSON_DETAIL: 'PersonDetail',
+  // Account Screens
+  ADD_ACCOUNT: 'AddAccount',
+  EDIT_ACCOUNT: 'EditAccount',
+  ACCOUNT_DETAIL: 'AccountDetail',
   
   // Transaction Screens
   ADD_TRANSACTION: 'AddTransaction',
@@ -25,6 +25,9 @@ export const SCREENS = {
   // Profile Screens
   EDIT_PROFILE: 'EditProfile',
   SETTINGS: 'Settings',
+  
+  // Category Screens
+  CATEGORY_MANAGEMENT: 'CategoryManagement',
 };
 
 // Navigation Names
@@ -155,6 +158,8 @@ export const SPACING = {
   XL: 32,
   '2XL': 48,
   '3XL': 64,
+  '4XL': 80,
+  '5XL': 96,
 };
 
 // Border Radius
@@ -209,7 +214,7 @@ export const MOCK_DATA = {
       avatar: null,
     },
   ],
-  PERSONS: [
+  ACCOUNTS: [
     {
       id: '1',
       name: 'Alice Johnson',
@@ -241,13 +246,13 @@ export const MOCK_DATA = {
   TRANSACTIONS: [
     {
       id: '1',
-      personId: '1',
+      accountId: '1',
       type: 'income',
       amount: 500.00,
       category: 'Payment',
       notes: 'Website design payment',
       date: '2024-01-15',
-      personName: 'Alice Johnson',
+      accountName: 'Alice Johnson',
       attachment: {
         uri: 'https://via.placeholder.com/300x200/4CAF50/FFFFFF?text=Invoice',
         type: 'image/jpeg',
@@ -256,13 +261,13 @@ export const MOCK_DATA = {
     },
     {
       id: '2',
-      personId: '1',
+      accountId: '1',
       type: 'expense',
       amount: 150.00,
       category: 'Materials',
       notes: 'Design software license',
       date: '2024-01-14',
-      personName: 'Alice Johnson',
+      accountName: 'Alice Johnson',
       attachment: {
         uri: 'https://via.placeholder.com/300x200/FF9800/FFFFFF?text=Receipt',
         type: 'image/jpeg',
@@ -271,23 +276,23 @@ export const MOCK_DATA = {
     },
     {
       id: '3',
-      personId: '2',
+      accountId: '2',
       type: 'expense',
       amount: 85.50,
       category: 'Food',
       notes: 'Dinner at restaurant',
       date: '2024-01-13',
-      personName: 'Bob Smith',
+      accountName: 'Bob Smith',
     },
     {
       id: '4',
-      personId: '3',
+      accountId: '3',
       type: 'income',
       amount: 2000.00,
       category: 'Project',
       notes: 'Q1 project completion',
       date: '2024-01-12',
-      personName: 'Carol Davis',
+      accountName: 'Carol Davis',
       attachment: {
         uri: 'https://via.placeholder.com/300x200/2196F3/FFFFFF?text=Contract',
         type: 'image/jpeg',
@@ -296,23 +301,23 @@ export const MOCK_DATA = {
     },
     {
       id: '5',
-      personId: '2',
+      accountId: '2',
       type: 'expense',
       amount: 45.00,
       category: 'Transport',
       notes: 'Uber ride to meeting',
       date: '2024-01-11',
-      personName: 'Bob Smith',
+      accountName: 'Bob Smith',
     },
     {
       id: '6',
-      personId: '3',
+      accountId: '3',
       type: 'expense',
       amount: 120.00,
       category: 'Materials',
       notes: 'Office supplies',
       date: '2024-01-10',
-      personName: 'Carol Davis',
+      accountName: 'Carol Davis',
       attachment: {
         uri: 'https://via.placeholder.com/300x200/9C27B0/FFFFFF?text=Receipt',
         type: 'image/jpeg',

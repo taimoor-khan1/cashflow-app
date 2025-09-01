@@ -4,60 +4,198 @@ import { COLORS, TYPOGRAPHY, SPACING } from '../constants';
 
 const { width } = Dimensions.get('window');
 
-const ChartComponent = ({ data, title, type = 'bar' }) => {
+const ChartComponent = ({ data, title, type = 'bar', dataType = 'default' }) => {
+  console.log('ChartComponent: Received data:', data);
+  console.log('ChartComponent: Data type:', dataType);
+  console.log('ChartComponent: Chart type:', type);
+  
   const renderBarChart = () => {
-    if (!data || data.length === 0) return null;
+    if (!data || data.length === 0) {
+      console.log('ChartComponent: No data available for bar chart');
+      return null;
+    }
 
-    const maxValue = Math.max(...data.map(item => item.value || 0));
-    if (maxValue <= 0) return null;
+    // Handle different data types
+    let chartData = [];
+    let maxValue = 0;
+
+    if (dataType === 'monthly') {
+      // For monthly breakdown data (income/expenses)
+      chartData = data.map(item => ({
+        label: item.month,
+        income: item.income || 0,
+        expenses: item.expenses || 0,
+        net: item.net || 0
+      }));
+      maxValue = Math.max(...chartData.map(item => Math.max(item.income, item.expenses, Math.abs(item.net))));
+      console.log('ChartComponent: Monthly chart data processed:', chartData);
+      console.log('ChartComponent: Max value for monthly chart:', maxValue);
+    } else {
+      // For default data (value/category)
+      chartData = data.map(item => ({
+        label: item.category || item.label || 'Unknown',
+        value: item.value || 0
+      }));
+      maxValue = Math.max(...chartData.map(item => item.value));
+      console.log('ChartComponent: Default chart data processed:', chartData);
+      console.log('ChartComponent: Max value for default chart:', maxValue);
+    }
+
+    if (maxValue <= 0) {
+      console.log('ChartComponent: Max value is 0 or negative, showing empty chart structure');
+      
+      if (dataType === 'monthly') {
+        // Show the monthly structure even with 0 values
+        return (
+          <View style={styles.chartContainer}>
+            {chartData.map((item, index) => (
+              <View key={index} style={styles.monthlyBarContainer}>
+                <View style={styles.monthlyBarWrapper}>
+                  {/* Show minimal bars even for 0 values */}
+                  <View
+                    style={[
+                      styles.monthlyBar,
+                      {
+                        height: 4,
+                        backgroundColor: COLORS.GRAY_300,
+                        marginBottom: 2,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.monthlyBar,
+                      {
+                        height: 4,
+                        backgroundColor: COLORS.GRAY_300,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.monthlyBarLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.monthlyBarValue}>
+                  {item.net >= 0 ? '+' : ''}{item.net.toFixed(0)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      }
+      
+      return null;
+    }
     
     const chartWidth = width - 40; // Account for padding
 
-    return (
-      <View style={styles.chartContainer}>
-        {data.map((item, index) => {
-          const height = ((item.value || 0) / maxValue) * 120;
-          if (isNaN(height)) return null;
-          
-          return (
-            <View key={index} style={styles.barContainer}>
-              <View style={styles.barWrapper}>
-                <View
-                  style={[
-                    styles.bar,
-                    {
-                      height: Math.max(0, height),
-                      backgroundColor: COLORS.PRIMARY,
-                    },
-                  ]}
-                />
+    if (dataType === 'monthly') {
+      // Render monthly breakdown with income/expenses bars
+      return (
+        <View style={styles.chartContainer}>
+          {chartData.map((item, index) => {
+            const incomeHeight = maxValue > 0 ? (item.income / maxValue) * 120 : 0;
+            const expensesHeight = maxValue > 0 ? (item.expenses / maxValue) * 120 : 0;
+            
+            return (
+              <View key={index} style={styles.monthlyBarContainer}>
+                <View style={styles.monthlyBarWrapper}>
+                  {/* Income bar */}
+                  <View
+                    style={[
+                      styles.monthlyBar,
+                      {
+                        height: Math.max(0, incomeHeight),
+                        backgroundColor: COLORS.SUCCESS,
+                        marginBottom: 2,
+                      },
+                    ]}
+                  />
+                  {/* Expenses bar */}
+                  <View
+                    style={[
+                      styles.monthlyBar,
+                      {
+                        height: Math.max(0, expensesHeight),
+                        backgroundColor: COLORS.ERROR,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.monthlyBarLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.monthlyBarValue}>
+                  {item.net >= 0 ? '+' : ''}{item.net.toFixed(0)}
+                </Text>
               </View>
-              <Text style={styles.barLabel} numberOfLines={1}>
-                {item.category}
-              </Text>
-              <Text style={styles.barValue}>{item.value || 0}%</Text>
-            </View>
-          );
-        })}
-      </View>
-    );
+            );
+          })}
+        </View>
+      );
+    } else {
+      // Render default bar chart
+      return (
+        <View style={styles.chartContainer}>
+          {chartData.map((item, index) => {
+            const height = maxValue > 0 ? (item.value / maxValue) * 120 : 0;
+            if (isNaN(height)) return null;
+            
+            return (
+              <View key={index} style={styles.barContainer}>
+                <View style={styles.barWrapper}>
+                  <View
+                    style={[
+                      styles.bar,
+                      {
+                        height: Math.max(0, height),
+                        backgroundColor: COLORS.PRIMARY,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.barLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.barValue}>{item.value || 0}%</Text>
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
   };
 
   const renderLineChart = () => {
     if (!data || data.length === 0) return null;
 
-    const maxValue = Math.max(...data.map(item => item.value || 0));
+    let chartData = [];
+    let maxValue = 0;
+
+    if (dataType === 'monthly') {
+      chartData = data.map(item => ({
+        label: item.month,
+        value: item.net || 0
+      }));
+    } else {
+      chartData = data.map(item => ({
+        label: item.category || item.label || 'Unknown',
+        value: item.value || 0
+      }));
+    }
+
+    maxValue = Math.max(...chartData.map(item => Math.abs(item.value)));
     if (maxValue <= 0) return null;
     
     const chartWidth = width - 40;
-    const pointSpacing = chartWidth / Math.max(data.length - 1, 1);
+    const pointSpacing = chartWidth / Math.max(chartData.length - 1, 1);
 
     return (
       <View style={styles.lineChartContainer}>
         <View style={styles.lineChart}>
-          {data.map((item, index) => {
-            const x = (index / Math.max(data.length - 1, 1)) * chartWidth;
-            const y = 120 - ((item.value || 0) / maxValue) * 120;
+          {chartData.map((item, index) => {
+            const x = (index / Math.max(chartData.length - 1, 1)) * chartWidth;
+            const y = 120 - ((Math.abs(item.value) / maxValue) * 120);
 
             // Ensure x and y are valid numbers
             if (isNaN(x) || isNaN(y)) return null;
@@ -70,6 +208,7 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
                   {
                     left: Math.max(0, Math.min(x - 4, chartWidth - 8)),
                     top: Math.max(0, Math.min(y - 4, 120 - 8)),
+                    backgroundColor: item.value >= 0 ? COLORS.SUCCESS : COLORS.ERROR,
                   },
                 ]}
               />
@@ -77,9 +216,9 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
           })}
         </View>
         <View style={styles.lineChartLabels}>
-          {data.map((item, index) => (
+          {chartData.map((item, index) => (
             <Text key={index} style={styles.lineLabel} numberOfLines={1}>
-              {item.category}
+              {item.label}
             </Text>
           ))}
         </View>
@@ -90,7 +229,20 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
   const renderPieChart = () => {
     if (!data || data.length === 0) return null;
 
-    const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
+    let chartData = [];
+    if (dataType === 'monthly') {
+      chartData = data.map(item => ({
+        category: item.month,
+        value: Math.abs(item.net) || 0
+      }));
+    } else {
+      chartData = data.map(item => ({
+        category: item.category || item.label || 'Unknown',
+        value: item.value || 0
+      }));
+    }
+
+    const total = chartData.reduce((sum, item) => sum + (item.value || 0), 0);
     if (total <= 0) return null;
     
     let currentAngle = 0;
@@ -98,7 +250,7 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
     return (
       <View style={styles.pieChartContainer}>
         <View style={styles.pieChart}>
-          {data.map((item, index) => {
+          {chartData.map((item, index) => {
             const percentage = ((item.value || 0) / total) * 100;
             const angle = (percentage / 100) * 360;
             const startAngle = currentAngle;
@@ -124,7 +276,7 @@ const ChartComponent = ({ data, title, type = 'bar' }) => {
           })}
         </View>
         <View style={styles.pieChartLegend}>
-          {data.map((item, index) => (
+          {chartData.map((item, index) => (
             <View key={index} style={styles.legendItem}>
               <View
                 style={[
@@ -216,6 +368,32 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.XS,
   },
   barValue: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.SM,
+    fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  // Monthly breakdown specific styles
+  monthlyBarContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  monthlyBarWrapper: {
+    height: 120,
+    justifyContent: 'flex-end',
+    marginBottom: SPACING.SM,
+  },
+  monthlyBar: {
+    width: 20,
+    borderRadius: 10,
+    minHeight: 4,
+  },
+  monthlyBarLabel: {
+    fontSize: TYPOGRAPHY.FONT_SIZE.XS,
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
+    marginBottom: SPACING.XS,
+  },
+  monthlyBarValue: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.MEDIUM,
     color: COLORS.TEXT_PRIMARY,

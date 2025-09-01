@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Text } from 'react-native';
+import { Text, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Import Firebase configuration first to ensure initialization
+import '../config/firebase';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -9,7 +13,6 @@ import { SCREENS, COLORS, TYPOGRAPHY } from '../constants';
 // Import screens
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
-import SignUpScreen from '../screens/SignUpScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import PersonsListScreen from '../screens/PersonsListScreen';
 import ReportsScreen from '../screens/ReportsScreen';
@@ -22,7 +25,15 @@ import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import TransactionsListScreen from '../screens/TransactionsListScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import CategoryManagementScreen from '../screens/CategoryManagementScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+// Import services
+import authService from '../services/authService';
+import dataService from '../services/dataService';
+
+// Import context providers
+import { ToastProvider } from '../contexts/ToastContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -40,6 +51,8 @@ export const useAuth = () => {
 
 // Main Tab Navigator
 const MainTabNavigator = () => {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={{
@@ -49,9 +62,9 @@ const MainTabNavigator = () => {
           backgroundColor: COLORS.WHITE,
           borderTopColor: COLORS.BORDER,
           borderTopWidth: 1,
-          paddingBottom: 20,
+          paddingBottom: Math.max(insets.bottom, 20),
           paddingTop: 5,
-          height: 80,
+          height: 60 + Math.max(insets.bottom, 20),
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -71,12 +84,12 @@ const MainTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name={SCREENS.PERSONS_LIST}
+        name={SCREENS.ACCOUNTS_LIST}
         component={PersonsListScreen}
         options={{
-          tabBarLabel: 'People',
+          tabBarLabel: 'Accounts',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="people" size={size} color={color} />
+            <Icon name="account-balance" size={size} color={color} />
           ),
         }}
       />
@@ -124,7 +137,6 @@ const AuthStackNavigator = () => {
       }}
     >
       <Stack.Screen name={SCREENS.LOGIN} component={LoginScreen} />
-      <Stack.Screen name={SCREENS.SIGNUP} component={SignUpScreen} />
     </Stack.Navigator>
   );
 };
@@ -154,19 +166,19 @@ const MainStackNavigator = () => {
         options={{ headerShown: false }}
       />
       <Stack.Screen 
-        name={SCREENS.ADD_PERSON} 
+        name={SCREENS.ADD_ACCOUNT} 
         component={AddPersonScreen}
-        options={{ title: 'Add Person' }}
+        options={{ title: 'Add Account' }}
       />
       <Stack.Screen 
-        name={SCREENS.EDIT_PERSON} 
+        name={SCREENS.EDIT_ACCOUNT} 
         component={EditPersonScreen}
-        options={{ title: 'Edit Person' }}
+        options={{ title: 'Edit Account' }}
       />
       <Stack.Screen 
-        name={SCREENS.PERSON_DETAIL} 
+        name={SCREENS.ACCOUNT_DETAIL} 
         component={PersonDetailScreen}
-        options={{ title: 'Person Details' }}
+        options={{ title: 'Account Details' }}
       />
       <Stack.Screen 
         name={SCREENS.ADD_TRANSACTION} 
@@ -188,6 +200,11 @@ const MainStackNavigator = () => {
         component={SettingsScreen}
         options={{ title: 'Settings' }}
       />
+      <Stack.Screen 
+        name={SCREENS.CATEGORY_MANAGEMENT} 
+        component={CategoryManagementScreen}
+        options={{ title: 'Manage Categories' }}
+      />
     </Stack.Navigator>
   );
 };
@@ -196,28 +213,58 @@ const MainStackNavigator = () => {
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const login = () => {
     setIsAuthenticated(true);
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await authService.signOut();
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      dataService.cleanup();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   useEffect(() => {
-    // Simulate app initialization
-    const timer = setTimeout(() => {
+    // Initialize Firebase auth state listener
+    const unsubscribe = authService.initAuthStateListener((user) => {
+      console.log('Auth state changed - user:', user);
+      if (user) {
+        console.log('User authenticated, initializing data service with UID:', user.uid);
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+        // Initialize data service with user ID
+        try {
+          dataService.init(user.uid);
+          console.log('Data service initialized successfully');
+        } catch (error) {
+          console.error('Failed to initialize data service:', error);
+        }
+      } else {
+        console.log('User not authenticated, cleaning up data service');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        dataService.cleanup();
+      }
       setIsLoading(false);
-      // For demo purposes, start with login screen
-      setIsAuthenticated(false);
-    }, 2000);
+    });
 
-    return () => clearTimeout(timer);
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up auth state listener');
+      unsubscribe();
+      dataService.cleanup();
+    };
   }, []);
 
   const authValue = {
     isAuthenticated,
+    currentUser,
     login,
     logout,
   };
@@ -228,13 +275,15 @@ const AppNavigator = () => {
 
   return (
     <AuthContext.Provider value={authValue}>
-      <NavigationContainer>
-        {isAuthenticated ? (
-          <MainStackNavigator />
-        ) : (
-          <AuthStackNavigator />
-        )}
-      </NavigationContainer>
+      <ToastProvider>
+        <NavigationContainer>
+          {isAuthenticated ? (
+            <MainStackNavigator />
+          ) : (
+            <AuthStackNavigator />
+          )}
+        </NavigationContainer>
+      </ToastProvider>
     </AuthContext.Provider>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,55 +9,59 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS, MOCK_DATA } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import { formatCurrency } from '../utils';
 import CustomButton from '../components/CustomButton';
 import TransactionItem from '../components/TransactionItem';
 import PersonItem from '../components/PersonItem';
 import ChartComponent from '../components/ChartComponent';
 import ScreenHeader from '../components/ScreenHeader';
+import { useAuth } from '../navigation/AppNavigator';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import dataService from '../services/dataService';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
+  const { currentUser } = useAuth();
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
-  const [dashboardData, setDashboardData] = useState({
-    totalBalance: 0,
-    totalIncome: 0,
-    totalExpenses: 0,
-    recentTransactions: [],
-    topPeople: [],
-  });
+  const [categories, setCategories] = useState([]);
+  const { 
+    dashboardStats, 
+    personsWithStats, 
+    transactions, 
+    loading, 
+    error, 
+    refreshData 
+  } = useRealTimeData();
 
   useEffect(() => {
-    loadDashboardData();
+    console.log('DashboardScreen: useEffect triggered');
+    loadCategories();
   }, []);
 
-  const loadDashboardData = () => {
-    const totalIncome = MOCK_DATA.PERSONS.reduce((sum, p) => sum + p.totalIncome, 0);
-    const totalExpenses = MOCK_DATA.PERSONS.reduce((sum, p) => sum + p.totalExpenses, 0);
-    const totalBalance = totalIncome - totalExpenses;
-    const recentTransactions = MOCK_DATA.TRANSACTIONS.slice(0, 5);
-    const topPeople = [...MOCK_DATA.PERSONS]
-      .sort((a, b) => b.transactionCount - a.transactionCount)
-      .slice(0, 3);
-
-    setDashboardData({
-      totalBalance,
-      totalIncome,
-      totalExpenses,
-      recentTransactions,
-      topPeople,
-    });
+  const loadCategories = async () => {
+    try {
+      const categoriesList = await dataService.getCategories();
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    loadDashboardData();
-    setRefreshing(false);
+    try {
+      await refreshData();
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getBalanceColor = (balance) => (balance >= 0 ? COLORS.SUCCESS : COLORS.ERROR);
@@ -81,12 +85,14 @@ const DashboardScreen = ({ navigation }) => {
         colors={COLORS.GRADIENT_PRIMARY}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 20 }]}
       >
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>John Doe</Text>
+            <Text style={styles.userName}>
+              {currentUser?.displayName || 'User'}
+            </Text>
           </View>
           <TouchableOpacity 
             style={styles.profileButton}
@@ -104,20 +110,20 @@ const DashboardScreen = ({ navigation }) => {
         >
           <Text style={styles.balanceLabel}>Total Balance</Text>
           <Text style={styles.balanceAmount}>
-            {getBalancePrefix(dashboardData.totalBalance)}
-            {formatCurrency(Math.abs(dashboardData.totalBalance))}
+            {getBalancePrefix(dashboardStats.totalBalance)}
+            {formatCurrency(Math.abs(dashboardStats.totalBalance))}
           </Text>
           <View style={styles.balanceStats}>
             <View style={styles.balanceStat}>
               <Icon name="trending-up" size={16} color={COLORS.SUCCESS} />
               <Text style={styles.balanceStatText}>
-                +{formatCurrency(dashboardData.totalIncome)}
+                +{formatCurrency(dashboardStats.totalIncome)}
               </Text>
             </View>
             <View style={styles.balanceStat}>
               <Icon name="trending-down" size={16} color={COLORS.ERROR} />
               <Text style={styles.balanceStatText}>
-                -{formatCurrency(dashboardData.totalExpenses)}
+                -{formatCurrency(dashboardStats.totalExpenses)}
               </Text>
             </View>
           </View>
@@ -149,15 +155,15 @@ const DashboardScreen = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => navigation.navigate('AddPerson')}
+            onPress={() => navigation.navigate('AddAccount')}
           >
             <LinearGradient
               colors={COLORS.GRADIENT_PRIMARY}
               style={styles.actionIcon}
             >
-              <Icon name="person-add" size={24} color={COLORS.WHITE} />
+              <Icon name="account-balance" size={24} color={COLORS.WHITE} />
             </LinearGradient>
-            <Text style={styles.actionText}>Add Person</Text>
+            <Text style={styles.actionText}>Add Account</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -184,77 +190,77 @@ const DashboardScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.transactionsList}>
-            {dashboardData.recentTransactions.map((transaction) => (
-              <TouchableOpacity
-                key={transaction.id}
-                style={styles.transactionItem}
-                onPress={() => navigation.navigate('TransactionDetail', { transactionId: transaction.id })}
-              >
-                <View style={[
-                  styles.transactionIcon,
-                  { backgroundColor: transaction.type === 'income' ? COLORS.SUCCESS_LIGHT : COLORS.ERROR_LIGHT }
-                ]}>
-                  <Icon
-                    name={transaction.type === 'income' ? 'trending-up' : 'trending-down'}
-                    size={20}
-                    color={transaction.type === 'income' ? COLORS.SUCCESS : COLORS.ERROR}
+            {(() => {
+              const recentTransactions = transactions
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 5);
+              
+              return recentTransactions.length > 0 ? (
+                recentTransactions.map((transaction) => (
+                  <TransactionItem
+                    key={transaction.id}
+                    transaction={transaction}
+                    categories={categories}
+                    onPress={() => navigation.navigate('TransactionDetail', { transactionId: transaction.id })}
                   />
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Icon name="receipt" size={48} color={COLORS.GRAY_400} />
+                  <Text style={styles.emptyStateText}>No transactions yet</Text>
+                  <Text style={styles.emptyStateSubtext}>Add your first transaction to get started</Text>
                 </View>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                  <Text style={styles.transactionPerson}>{transaction.personName}</Text>
-                </View>
-                <View style={styles.transactionAmount}>
-                  <Text style={[
-                    styles.transactionAmountText,
-                    { color: transaction.type === 'income' ? COLORS.SUCCESS : COLORS.ERROR }
-                  ]}>
-                    {transaction.type === 'income' ? '+' : '-'}
-                    {formatCurrency(transaction.amount)}
-                  </Text>
-                  <Text style={styles.transactionDate}>
-                    {new Date(transaction.date).toLocaleDateString()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+              );
+            })()}
           </View>
         </View>
 
-        {/* Top People */}
+        {/* Top Accounts */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top People</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('PersonsList')}>
+            <Text style={styles.sectionTitle}>Top Accounts</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AccountsList')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
           
           <View style={styles.peopleList}>
-            {dashboardData.topPeople.map((person, index) => (
-              <TouchableOpacity
-                key={person.id}
-                style={styles.personItem}
-                onPress={() => navigation.navigate('PersonDetail', { personId: person.id })}
-              >
-                <View style={styles.personRank}>
-                  <Text style={[styles.rankNumber, { color: getRankColor(index) }]}>
-                    #{index + 1}
-                  </Text>
-                </View>
-                <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{person.name}</Text>
-                  <Text style={styles.personStats}>
-                    {person.transactionCount} transactions • {formatCurrency(person.balance)} balance
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
-              </TouchableOpacity>
-            ))}
+            {(() => {
+              const topPeople = [...personsWithStats]
+                .sort((a, b) => b.transactionCount - a.transactionCount)
+                .slice(0, 3);
+              
+              return topPeople.length > 0 ? (
+                topPeople.map((person, index) => (
+                <TouchableOpacity
+                  key={person.id}
+                  style={styles.personItem}
+                  onPress={() => navigation.navigate('AccountDetail', { personId: person.id })}
+                >
+                  <View style={styles.personRank}>
+                    <Text style={[styles.rankNumber, { color: getRankColor(index) }]}>
+                      #{index + 1}
+                    </Text>
+                  </View>
+                  <View style={styles.personInfo}>
+                    <Text style={styles.personName}>{person.name}</Text>
+                    <Text style={styles.personStats}>
+                      {person.transactionCount} transactions • {formatCurrency(person.balance)} balance
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Icon name="account-balance" size={48} color={COLORS.GRAY_400} />
+                <Text style={styles.emptyStateText}>No accounts yet</Text>
+                <Text style={styles.emptyStateSubtext}>Add your first account to get started</Text>
+              </View>
+            );
+            })()}
           </View>
         </View>
-
-    
       </ScrollView>
     </View>
   );
@@ -266,7 +272,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    paddingTop: 60,
     paddingBottom: 24,
     paddingHorizontal: 20,
   },
@@ -378,46 +383,6 @@ const styles = StyleSheet.create({
     padding: 16,
     ...SHADOWS.MD,
   },
-  transactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER_LIGHT,
-  },
-  transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionCategory: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: 2,
-  },
-  transactionPerson: {
-    fontSize: 14,
-    color: COLORS.TEXT_SECONDARY,
-  },
-  transactionAmount: {
-    alignItems: 'flex-end',
-  },
-  transactionAmountText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: COLORS.TEXT_TERTIARY,
-  },
   peopleList: {
     backgroundColor: COLORS.WHITE,
     borderRadius: 16,
@@ -452,6 +417,22 @@ const styles = StyleSheet.create({
   personStats: {
     fontSize: 14,
     color: COLORS.TEXT_SECONDARY,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: COLORS.TEXT_TERTIARY,
+    textAlign: 'center',
   },
   chartContainer: {
     backgroundColor: COLORS.WHITE,

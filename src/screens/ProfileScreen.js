@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StatusBar,
   Alert,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -14,20 +15,22 @@ import {COLORS, TYPOGRAPHY, SPACING, APP_CONFIG, SHADOWS} from '../constants';
 import Card from '../components/Card';
 import CustomButton from '../components/CustomButton';
 import {useAuth} from '../navigation/AppNavigator';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import { useToast } from '../contexts/ToastContext';
 
 const ProfileScreen = ({navigation}) => {
-  const {logout} = useAuth();
-  const [user] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: null,
-    joinDate: 'January 2024',
-    totalTransactions: 45,
-    totalPersons: 8,
-  });
+  const { showSuccess, showError , showInfo} = useToast();
+  const {logout, currentUser} = useAuth();
+  const { dashboardStats } = useRealTimeData();
+  
+  const userStats = {
+    totalTransactions: dashboardStats.totalTransactions,
+    totalPersons: dashboardStats.totalPersons,
+  };
 
   const handleEditProfile = () => {
-    navigation.navigate('EditProfile');
+    // navigation.navigate('EditProfile');
+    showInfo('Edit profile will be available in a future update.');
   };
 
   const handleLogout = () => {
@@ -47,18 +50,34 @@ const ProfileScreen = ({navigation}) => {
   };
 
   const handlePrivacyPolicy = () => {
-    // Navigate to privacy policy or open URL
-    console.log('Open privacy policy');
+    Alert.alert('Privacy Policy', 'Privacy policy will be available in a future update.');
   };
 
   const handleTermsOfService = () => {
-    // Navigate to terms of service or open URL
-    console.log('Open terms of service');
+    Alert.alert('Terms of Service', 'Terms of service will be available in a future update.');
   };
 
   const handleContactSupport = () => {
-    // Open email or contact support
-    console.log('Contact support');
+    Alert.alert('Contact Support', 'Contact support will be available in a future update.');
+  };
+
+  const formatJoinDate = (timestamp) => {
+    if (!timestamp) return 'Recently';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long' 
+    });
+  };
+
+  const getUserInitials = (displayName) => {
+    if (!displayName) return '?';
+    return displayName
+      .split(' ')
+      .map(name => name.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -97,16 +116,29 @@ const ProfileScreen = ({navigation}) => {
         {/* Profile Info */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {currentUser?.photoURL ? (
+              <Image 
+                source={{ uri: currentUser.photoURL }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {getUserInitials(currentUser?.displayName)}
+                </Text>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={styles.joinDate}>Member since {user.joinDate}</Text>
+          <Text style={styles.userName}>
+            {currentUser?.displayName || 'User'}
+          </Text>
+          <Text style={styles.userEmail}>
+            {currentUser?.email || 'No email'}
+          </Text>
+          <Text style={styles.joinDate}>
+            Member since {formatJoinDate(currentUser?.metadata?.creationTime)}
+          </Text>
         </View>
 
         {/* Stats */}
@@ -115,13 +147,13 @@ const ProfileScreen = ({navigation}) => {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Icon name="receipt" size={24} color={COLORS.PRIMARY} />
-              <Text style={styles.statValue}>{user.totalTransactions}</Text>
+              <Text style={styles.statValue}>{userStats.totalTransactions}</Text>
               <Text style={styles.statLabel}>Transactions</Text>
             </View>
             <View style={styles.statCard}>
-              <Icon name="people" size={24} color={COLORS.SECONDARY} />
-              <Text style={styles.statValue}>{user.totalPersons}</Text>
-              <Text style={styles.statLabel}>People</Text>
+              <Icon name="account-balance" size={24} color={COLORS.SECONDARY} />
+              <Text style={styles.statValue}>{userStats.totalPersons}</Text>
+              <Text style={styles.statLabel}>Accounts</Text>
             </View>
           </View>
         </View>
@@ -129,6 +161,15 @@ const ProfileScreen = ({navigation}) => {
         {/* Settings */}
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
+          
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Icon name="settings" size={24} color={COLORS.PRIMARY} />
+            <Text style={styles.settingText}>App Settings</Text>
+            <Icon name="chevron-right" size={24} color={COLORS.GRAY_400} />
+          </TouchableOpacity>
           
           <TouchableOpacity style={styles.settingItem} onPress={handlePrivacyPolicy}>
             <Icon name="privacy-tip" size={24} color={COLORS.PRIMARY} />
@@ -206,7 +247,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-   
   },
   content: {
     flex: 1,
@@ -233,6 +273,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 32,
@@ -308,10 +353,12 @@ const styles = StyleSheet.create({
   },
   logoutSection: {
     alignItems: 'center',
+  
   },
   logoutButton: {
     paddingHorizontal: 48,
     borderRadius: 16,
+    backgroundColor: COLORS.WHITE,
   },
 });
 

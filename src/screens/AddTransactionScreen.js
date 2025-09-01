@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -13,21 +12,28 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, MOCK_DATA, SHADOWS } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomDropdown from '../components/CustomDropdown';
 import CustomButton from '../components/CustomButton';
 import ImageViewer from '../components/ImageViewer';
 import DatePicker from '../components/DatePicker';
+import Modal from '../components/Modal';
 import { formatDateForInput } from '../utils';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import dataService from '../services/dataService';
+import { useToast } from '../contexts/ToastContext';
 
 const AddTransactionScreen = ({ navigation, route }) => {
   const person = route.params?.person;
+  const transactionId = route.params?.transactionId;
+  const isEditing = route.params?.isEditing || false;
+  const { showSuccess, showError } = useToast();
   
   const [formData, setFormData] = useState({
     type: 'expense',
     personId: person?.id || '',
+    title: '',
     amount: '',
     category: '',
     notes: '',
@@ -37,9 +43,73 @@ const AddTransactionScreen = ({ navigation, route }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [persons, setPersons] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    loadPersons();
+    loadCategories();
+    if (isEditing && transactionId) {
+      loadTransactionForEditing();
+    }
+  }, [isEditing, transactionId]);
+
+  const loadPersons = async () => {
+    try {
+      const personsList = await dataService.getPersons();
+      setPersons(personsList);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      showError('Failed to load accounts. Please try again.');
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const categoriesList = await dataService.getCategories();
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      showError('Failed to load categories. Please try again.');
+    }
+  };
+
+  const loadTransactionForEditing = async () => {
+    try {
+      console.log('Loading transaction for editing:', transactionId);
+      const transactions = await dataService.getTransactions();
+      const transactionToEdit = transactions.find(t => t.id === transactionId);
+      
+      if (transactionToEdit) {
+        console.log('Transaction found for editing:', transactionToEdit);
+        setFormData({
+          type: transactionToEdit.type || 'expense',
+          personId: transactionToEdit.personId || '',
+          title: transactionToEdit.title || '',
+          amount: String(transactionToEdit.amount || ''),
+          category: transactionToEdit.category || '',
+          notes: transactionToEdit.notes || '',
+          date: transactionToEdit.date || formatDateForInput(new Date()),
+          attachment: transactionToEdit.attachment || null,
+        });
+      } else {
+        console.error('Transaction not found for editing:', transactionId);
+        showError('Transaction not found for editing');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error loading transaction for editing:', error);
+      showError('Failed to load transaction for editing');
+      navigation.goBack();
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
 
     if (!formData.amount.trim()) {
       newErrors.amount = 'Amount is required';
@@ -52,7 +122,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
     }
 
     if (!formData.personId) {
-      newErrors.personId = 'Please select a person';
+      newErrors.personId = 'Please select an account';
     }
 
     if (!formData.date) {
@@ -71,22 +141,39 @@ const AddTransactionScreen = ({ navigation, route }) => {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Get account name for the transaction
+      const selectedAccount = persons.find(p => p.id === formData.personId);
+      
+      const transactionData = {
+        type: formData.type,
+        personId: formData.personId,
+        personName: selectedAccount?.name || 'Unknown',
+        title: formData.title.trim(),
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        notes: formData.notes.trim() || '',
+        date: formData.date,
+        attachment: formData.attachment,
+      };
 
-      // Success - navigate back
-      Alert.alert(
-        'Success',
-        'Transaction added successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      if (isEditing && transactionId) {
+        // Update existing transaction
+        console.log('Updating transaction:', transactionId, transactionData);
+        await dataService.updateTransaction(transactionId, transactionData);
+        
+        showSuccess('Transaction updated successfully!');
+        navigation.goBack();
+      } else {
+        // Create new transaction
+        console.log('Creating new transaction:', transactionData);
+        await dataService.createTransaction(transactionData);
+        
+        showSuccess('Transaction added successfully!');
+        navigation.goBack();
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to add transaction. Please try again.');
+      console.error('Error saving transaction:', error);
+      showError(`Failed to ${isEditing ? 'update' : 'add'} transaction. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -153,12 +240,14 @@ const AddTransactionScreen = ({ navigation, route }) => {
           >
             <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Transaction</Text>
+          <Text style={styles.headerTitle}>
+            {isEditing ? 'Edit Transaction' : 'Add Transaction'}
+          </Text>
           <View style={styles.placeholder} />
         </View>
         
         <Text style={styles.headerSubtitle}>
-          Record a new financial transaction
+          {isEditing ? 'Update your financial transaction' : 'Record a new financial transaction'}
         </Text>
       </LinearGradient>
 
@@ -199,7 +288,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
                 <TouchableOpacity
                   style={[
                     styles.typeButton,
-                    formData.type === 'income' && styles.typeButtonActive
+                    formData.type === 'income' && {backgroundColor:COLORS.SUCCESS}
                   ]}
                   onPress={() => handleInputChange('type', 'income')}
                 >
@@ -218,16 +307,33 @@ const AddTransactionScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Person Selection */}
+                {/* Date */}
+                <DatePicker
+              label="Date"
+              value={formData.date}
+              onDateChange={(date) => handleInputChange('date', formatDateForInput(date))}
+              error={errors.date}
+            />
+
+            {/* Account Selection */}
             <CustomDropdown
-              label="Person"
+              label="Account"
               value={formData.personId}
               onValueChange={(value) => handleInputChange('personId', value)}
-              items={MOCK_DATA.PERSONS}
-              placeholder="Select a person"
+              items={persons}
+              placeholder="Select an account"
               error={errors.personId}
               valueKey="id"
               displayKey="name"
+            />
+
+            {/* Title */}
+            <CustomInput
+              label="Title"
+              value={formData.title}
+              onChangeText={(value) => handleInputChange('title', value)}
+              placeholder="Enter transaction title"
+              error={errors.title}
             />
 
             {/* Amount */}
@@ -245,20 +351,19 @@ const AddTransactionScreen = ({ navigation, route }) => {
               label="Category"
               value={formData.category}
               onValueChange={(value) => handleInputChange('category', value)}
-              items={MOCK_DATA.CATEGORIES.map(category => ({ id: category, name: category }))}
+              items={categories.map(category => ({ 
+                id: category.id, 
+                name: category.name,
+                color: category.color,
+                icon: category.icon 
+              }))}
               placeholder="Select category"
               error={errors.category}
               valueKey="id"
               displayKey="name"
             />
 
-            {/* Date */}
-            <DatePicker
-              label="Date"
-              value={formData.date}
-              onDateChange={(date) => handleInputChange('date', formatDateForInput(date))}
-              error={errors.date}
-            />
+        
 
             {/* Notes */}
             <CustomInput
@@ -321,7 +426,7 @@ const AddTransactionScreen = ({ navigation, route }) => {
 
             {/* Submit Button */}
             <CustomButton
-              title="Add Transaction"
+              title={isEditing ? 'Update Transaction' : 'Add Transaction'}
               onPress={handleSubmit}
               loading={loading}
               style={styles.submitButton}

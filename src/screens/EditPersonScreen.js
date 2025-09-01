@@ -4,37 +4,69 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  TouchableOpacity,
+  PermissionsAndroid,
+  StatusBar,
 } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, MOCK_DATA } from '../constants';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../constants';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import ImageViewer from '../components/ImageViewer';
+import Modal from '../components/Modal';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import dataService from '../services/dataService';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../navigation/AppNavigator';
 
 const EditPersonScreen = ({ navigation, route }) => {
   const { personId } = route.params;
-  
+  const { currentUser } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     notes: '',
+    attachment: null,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     if (personId) {
-      const person = MOCK_DATA.PERSONS.find(p => p.id === personId);
+      loadPersonData();
+    }
+  }, [personId]);
+
+  const loadPersonData = async () => {
+    try {
+      setInitialLoading(true);
+      const personsData = await dataService.getPersons();
+      const person = personsData.find(p => p.id === personId);
+      
       if (person) {
         setFormData({
           name: person.name,
           notes: person.notes || '',
         });
+      } else {
+        showError('Account not found');
+        navigation.goBack();
       }
+    } catch (error) {
+      console.error('Error loading person data:', error);
+      showError('Failed to load account data');
+      navigation.goBack();
+    } finally {
       setInitialLoading(false);
     }
-  }, [personId]);
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -59,43 +91,36 @@ const EditPersonScreen = ({ navigation, route }) => {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await dataService.updatePerson(personId, {
+        name: formData.name.trim(),
+        notes: formData.notes.trim(),
+        updatedAt: new Date().toISOString(),
+      });
 
       // Success - navigate back
-      Alert.alert(
-        'Success',
-        'Person updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      showSuccess('Account updated successfully!');
+      navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update person. Please try again.');
+      console.error('Error updating person:', error);
+      showError('Failed to update account. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Person',
-      'Are you sure you want to delete this person? This will also delete all associated transactions.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Handle deletion
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+  const handleDeletePerson = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePerson = async () => {
+    try {
+      await dataService.deletePerson(personId);
+      showSuccess('Account deleted successfully!');
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      showError('Failed to delete account. Please try again.');
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -115,69 +140,101 @@ const EditPersonScreen = ({ navigation, route }) => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={COLORS.GRADIENT_PRIMARY}
+        style={styles.header}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Edit Person</Text>
-          <Text style={styles.subtitle}>
-            Update person information
-          </Text>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={COLORS.WHITE} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Account</Text>
+          <View style={styles.placeholder} />
         </View>
-
-        <View style={styles.form}>
-          <CustomInput
-            label="Full Name"
-            value={formData.name}
-            onChangeText={(value) => handleInputChange('name', value)}
-            placeholder="Enter person's full name"
-            autoCapitalize="words"
-            autoCorrect={false}
-            error={errors.name}
-          />
-
-          <CustomInput
-            label="Notes (Optional)"
-            value={formData.notes}
-            onChangeText={(value) => handleInputChange('notes', value)}
-            placeholder="Add any notes about this person"
-            multiline
-            numberOfLines={3}
-            autoCapitalize="sentences"
-          />
-
-          <View style={styles.buttonContainer}>
-            <CustomButton
-              title="Cancel"
-              onPress={() => navigation.goBack()}
-              variant="outline"
-              style={styles.cancelButton}
+        
+        <Text style={styles.headerSubtitle}>
+          Update account information
+        </Text>
+      </LinearGradient>
+      
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.form}>
+            <CustomInput
+              label="Full Name"
+              value={formData.name}
+              onChangeText={(value) => handleInputChange('name', value)}
+              placeholder="Enter account's full name"
+              autoCapitalize="words"
+              autoCorrect={false}
+              error={errors.name}
             />
-            <CustomButton
-              title="Update Person"
-              onPress={handleSubmit}
-              loading={loading}
-              style={styles.submitButton}
+
+            <CustomInput
+              label="Notes (Optional)"
+              value={formData.notes}
+              onChangeText={(value) => handleInputChange('notes', value)}
+              placeholder="Add any notes about this account"
+              multiline
+              numberOfLines={3}
+              autoCapitalize="sentences"
             />
+
+            <View style={styles.buttonContainer}>
+              <CustomButton
+                title="Cancel"
+                onPress={() => navigation.goBack()}
+                variant="outline"
+                style={styles.cancelButton}
+              />
+              <CustomButton
+                title="Update Account"
+                onPress={handleSubmit}
+                loading={loading}
+                style={styles.submitButton}
+              />
+            </View>
+
+            <View style={styles.deleteSection}>
+              <CustomButton
+                title="Delete Account"
+                onPress={handleDeletePerson}
+                variant="outline"
+                textStyle={styles.deleteButtonText}
+                style={styles.deleteButton}
+              />
+            </View>
           </View>
-
-          <View style={styles.deleteSection}>
-            <CustomButton
-              title="Delete Person"
-              onPress={handleDelete}
-              variant="outline"
-              style={styles.deleteButton}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Account"
+        message="Are you sure you want to delete this account? This will also delete all associated transactions."
+        type="warning"
+        confirmText="Delete"
+        cancelText="Cancel"
+        showCancel={true}
+        onConfirm={confirmDeletePerson}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </View>
   );
 };
 
@@ -200,21 +257,41 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.XL,
   },
   header: {
-    padding: SPACING.MD,
-    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? SPACING.XL : SPACING.MD,
+    paddingBottom: SPACING.MD,
+    paddingHorizontal: SPACING.MD,
+    borderBottomLeftRadius: BORDER_RADIUS.XL,
+    borderBottomRightRadius: BORDER_RADIUS.XL,
+    marginBottom: SPACING.MD,
   },
-  title: {
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.XS,
+  },
+  backButton: {
+    padding: SPACING.SM,
+  },
+  headerTitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.XL,
     fontWeight: TYPOGRAPHY.FONT_WEIGHT.BOLD,
-    color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.XS,
+    color: COLORS.WHITE,
     textAlign: 'center',
+    flex: 1,
   },
-  subtitle: {
+  placeholder: {
+    width: SPACING.MD,
+  },
+  headerSubtitle: {
     fontSize: TYPOGRAPHY.FONT_SIZE.SM,
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.WHITE,
     textAlign: 'center',
     lineHeight: TYPOGRAPHY.LINE_HEIGHT.NORMAL,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: COLORS.BACKGROUND,
   },
   form: {
     padding: SPACING.MD,
@@ -239,6 +316,11 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: COLORS.ERROR,
     borderColor: COLORS.ERROR,
+
+
+  },
+  deleteButtonText: {
+    color: COLORS.WHITE,
   },
 });
 
