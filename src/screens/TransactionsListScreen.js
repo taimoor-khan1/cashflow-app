@@ -17,6 +17,8 @@ import TransactionItem from '../components/TransactionItem';
 import CustomDropdown from '../components/CustomDropdown';
 import { useRealTimeData } from '../hooks/useRealTimeData';
 import { useAuth } from '../navigation/AppNavigator';
+import dataService from '../services/dataService';
+import { resolveCategoryName } from '../utils';
 
 const TransactionsListScreen = ({ navigation }) => {
   console.log('TransactionsListScreen: Component rendering...');
@@ -77,13 +79,15 @@ const TransactionsListScreen = ({ navigation }) => {
     
     try {
       let filtered = [...transactions];
+      const getCategoryName = (categoryId) => resolveCategoryName(categoryId, categories)?.toLowerCase?.() || '';
 
       // Filter by search text
       if (searchText.trim()) {
+        const q = searchText.toLowerCase();
         filtered = filtered.filter(transaction => 
-          transaction.notes?.toLowerCase().includes(searchText.toLowerCase()) ||
-          transaction.category?.toLowerCase().includes(searchText.toLowerCase()) ||
-          transaction.personName?.toLowerCase().includes(searchText.toLowerCase())
+          transaction.notes?.toLowerCase().includes(q) ||
+          getCategoryName(transaction.category).includes(q) ||
+          transaction.personName?.toLowerCase().includes(q)
         );
       }
 
@@ -131,7 +135,7 @@ const TransactionsListScreen = ({ navigation }) => {
             case 'amount':
               return (b.amount || 0) - (a.amount || 0);
             case 'category':
-              return (a.category || '').localeCompare(b.category || '');
+              return getCategoryName(a.category).localeCompare(getCategoryName(b.category));
             case 'account':
               return (a.personName || '').localeCompare(b.personName || '');
             default:

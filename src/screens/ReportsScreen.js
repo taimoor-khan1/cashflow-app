@@ -7,6 +7,8 @@ import {
   StatusBar,
   TouchableOpacity,
   RefreshControl,
+  Share,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -17,19 +19,34 @@ import {
   BORDER_RADIUS,
   SHADOWS,
 } from '../constants';
-import { formatCurrency } from '../utils';
+import { formatCurrency, resolveCategoryName } from '../utils';
+import RNFS from 'react-native-fs';
+import ShareLib from 'react-native-share';
+import RNPrint from 'react-native-print';
+import XLSX from 'xlsx';
 import ChartComponent from '../components/ChartComponent';
 import Card from '../components/Card';
 import dataService from '../services/dataService';
 import { useAuth } from '../navigation/AppNavigator';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useToast } from '../contexts/ToastContext';
+import DatePicker from '../components/DatePicker';
+import CustomDropdown from '../components/CustomDropdown';
 
 const ReportsScreen = ({ navigation }) => {
   const { currentUser } = useAuth();
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [persons, setPersons] = useState([]);
+  const [filters, setFilters] = useState({
+    startDate: null,
+    endDate: null,
+    type: 'all',
+    categoryId: 'all',
+    personId: 'all',
+  });
   const [reportsData, setReportsData] = useState({
     totalIncome: 0,
     totalExpenses: 0,
@@ -40,23 +57,42 @@ const ReportsScreen = ({ navigation }) => {
   });
 
   useEffect(() => {
-    loadReportsData();
+    loadInitialData();
   }, []);
+
+  useEffect(() => {
+    loadReportsData();
+  }, [filters]);
+
+  const loadInitialData = async () => {
+    try {
+      const [cats, pers] = await Promise.all([
+        dataService.getCategories(),
+        dataService.getPersons(),
+      ]);
+      setCategories(cats || []);
+      setPersons(pers || []);
+    } catch (e) {
+      console.warn('Failed loading categories/persons for filters', e);
+    } finally {
+      loadReportsData();
+    }
+  };
 
   const loadReportsData = async () => {
     try {
       setLoading(true);
       console.log('ReportsScreen: Loading reports data...');
 
-      const stats = await dataService.getDashboardStats();
-      console.log('ReportsScreen: Dashboard stats loaded:', stats);
-
-      if (stats) {
-        // Get transactions data for calculations
-        const transactions = await dataService.getTransactions();
+      // Get transactions and categories
+      const [allTransactions, categories] = await Promise.all([
+        dataService.getTransactions(),
+        dataService.getCategories(),
+      ]);
+      const transactions = applyFilters(allTransactions || []);
         console.log(
           'ReportsScreen: Transactions loaded:',
-          transactions?.length,
+        transactions?.length,
         );
         console.log('ReportsScreen: Sample transaction:', transactions?.[0]);
 
@@ -88,8 +124,12 @@ const ReportsScreen = ({ navigation }) => {
           );
         }
 
-        const totalIncome = stats.totalIncome || 0;
-        const totalExpenses = stats.totalExpenses || 0;
+        const totalIncome = (transactions || [])
+          .filter((t) => t.type === 'income')
+          .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const totalExpenses = (transactions || [])
+          .filter((t) => t.type === 'expense')
+          .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         const netCashFlow = totalIncome - totalExpenses;
         const averageMonthlyIncome = totalIncome / 6; // Assuming 6 months
         const averageMonthlyExpenses = totalExpenses / 6;
@@ -105,12 +145,13 @@ const ReportsScreen = ({ navigation }) => {
             : '';
 
         // Get top category
-        const topCategory =
+        const topCategoryId =
           categoryBreakdown.length > 0
             ? categoryBreakdown.reduce((top, current) =>
                 current.total > top.total ? current : top,
               ).category
             : '';
+        const topCategory = resolveCategoryName(topCategoryId, categories) || '';
 
         const finalData = {
           monthlyData: monthlyBreakdown,
@@ -126,7 +167,6 @@ const ReportsScreen = ({ navigation }) => {
 
         console.log('ReportsScreen: Setting final reports data:', finalData);
         setReportsData(finalData);
-      }
     } catch (error) {
       console.error('Error loading reports data:', error);
       // Set default data on error
@@ -146,6 +186,36 @@ const ReportsScreen = ({ navigation }) => {
     }
   };
 
+  const applyFilters = (transactions) => {
+    try {
+      let result = Array.isArray(transactions) ? [...transactions] : [];
+      const { startDate, endDate, type, categoryId, personId } = filters;
+
+      if (startDate) {
+        const start = new Date(startDate);
+        result = result.filter((t) => new Date(t.date) >= start);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        result = result.filter((t) => new Date(t.date) <= end);
+      }
+      if (type && type !== 'all') {
+        result = result.filter((t) => t.type === type);
+      }
+      if (categoryId && categoryId !== 'all') {
+        result = result.filter((t) => t.category === categoryId);
+      }
+      if (personId && personId !== 'all') {
+        result = result.filter((t) => t.personId === personId);
+      }
+      return result;
+    } catch (e) {
+      console.warn('applyFilters error', e);
+      return transactions || [];
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -154,6 +224,137 @@ const ReportsScreen = ({ navigation }) => {
       console.error('Error refreshing reports:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const exportToCSV = async () => {
+    try {
+      const [allTransactions, categories] = await Promise.all([
+        dataService.getTransactions(),
+        dataService.getCategories(),
+      ]);
+      const transactions = applyFilters(allTransactions || []);
+
+      const headers = [
+        'Date',
+        'Type',
+        'Title',
+        'Amount',
+        'Category',
+        'Person',
+        'Notes',
+      ];
+
+      const escape = (val) => {
+        const s = String(val ?? '');
+        if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+
+      const rows = (transactions || []).map((t) => [
+        t.date || '',
+        t.type || '',
+        t.title || '',
+        (parseFloat(t.amount) || 0).toString(),
+        resolveCategoryName(t.category, categories),
+        t.personName || '',
+        t.notes || '',
+      ].map(escape).join(','));
+
+      const metadata = [
+        `Exported At,${new Date().toISOString()}`,
+        `Filters,Date Range: N/A | Sort: N/A`,
+        '',
+      ].join('\n');
+
+      const csv = [metadata, headers.join(','), ...rows].join('\n');
+
+      const path = `${RNFS.CachesDirectoryPath}/cashflow_export_${Date.now()}.csv`;
+      await RNFS.writeFile(path, csv, 'utf8');
+
+      await ShareLib.open({
+        title: 'Cashflow Export (CSV)',
+        url: Platform.OS === 'android' ? `file://${path}` : path,
+        type: 'text/csv',
+        failOnCancel: false,
+      });
+    } catch (err) {
+      console.error('Export CSV error:', err);
+      showError('Failed to export CSV.');
+    }
+  };
+
+  const exportToXLSX = async () => {
+    try {
+      const [allTransactions, categories] = await Promise.all([
+        dataService.getTransactions(),
+        dataService.getCategories(),
+      ]);
+      const transactions = applyFilters(allTransactions || []);
+
+      const data = (transactions || []).map((t) => ({
+        Date: t.date || '',
+        Type: t.type || '',
+        Title: t.title || '',
+        Amount: parseFloat(t.amount) || 0,
+        Category: resolveCategoryName(t.category, categories),
+        Person: t.personName || '',
+        Notes: t.notes || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+      const path = `${RNFS.CachesDirectoryPath}/cashflow_export_${Date.now()}.xlsx`;
+      await RNFS.writeFile(path, wbout, 'base64');
+
+      await ShareLib.open({
+        title: 'Cashflow Export (XLSX)',
+        url: Platform.OS === 'android' ? `file://${path}` : path,
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        failOnCancel: false,
+      });
+    } catch (err) {
+      console.error('Export XLSX error:', err);
+      showError('Failed to export Excel.');
+    }
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const stats = reportsData;
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              body { font-family: -apple-system, Roboto, Arial; padding: 16px; }
+              h1 { font-size: 20px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+              th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
+              th { background: #f0f0f0; text-align: left; }
+            </style>
+          </head>
+          <body>
+            <h1>Cashflow Summary</h1>
+            <div>Date: ${new Date().toLocaleString()}</div>
+            <table>
+              <tr><th>Total Income</th><td>${formatCurrency(stats.totalIncome || 0)}</td></tr>
+              <tr><th>Total Expenses</th><td>${formatCurrency(stats.totalExpenses || 0)}</td></tr>
+              <tr><th>Net Cash Flow</th><td>${formatCurrency(stats.netCashFlow || 0)}</td></tr>
+              <tr><th>Top Category</th><td>${stats.topCategory || ''}</td></tr>
+              <tr><th>Total Transactions</th><td>${stats.totalTransactions || 0}</td></tr>
+            </table>
+          </body>
+        </html>`;
+      await RNPrint.print({ html });
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      showError('Failed to export PDF.');
     }
   };
 
@@ -199,6 +400,103 @@ const ReportsScreen = ({ navigation }) => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
+        {/* Filters & Export Section */}
+        <View style={styles.exportSection}>
+          <Text style={styles.sectionTitle}>Filters</Text>
+          <View style={styles.filtersRow}>
+            <View style={{ flex: 1 }}>
+              <DatePicker
+                label="From"
+                value={filters.startDate}
+                onDateChange={(d) => setFilters((f) => ({ ...f, startDate: d }))}
+                placeholder="Start date"
+              />
+            </View>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <DatePicker
+                label="To"
+                value={filters.endDate}
+                onDateChange={(d) => setFilters((f) => ({ ...f, endDate: d }))}
+                placeholder="End date"
+              />
+            </View>
+          </View>
+          <View style={styles.filtersRow}>
+            <View style={{ flex: 1 }}>
+              <CustomDropdown
+                label="Type"
+                value={filters.type}
+                onValueChange={(v) => setFilters((f) => ({ ...f, type: v }))}
+                items={[
+                  { id: 'all', name: 'All' },
+                  { id: 'income', name: 'Income' },
+                  { id: 'expense', name: 'Expense' },
+                ]}
+                valueKey="id"
+                displayKey="name"
+              />
+            </View>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <CustomDropdown
+                label="Category"
+                value={filters.categoryId}
+                onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v }))}
+                items={[{ id: 'all', name: 'All' }, ...(categories || [])]}
+                valueKey="id"
+                displayKey="name"
+              />
+            </View>
+          </View>
+          <View style={styles.filtersRow}>
+            <View style={{ flex: 1 }}>
+              <CustomDropdown
+                label="Person"
+                value={filters.personId}
+                onValueChange={(v) => setFilters((f) => ({ ...f, personId: v }))}
+                items={[{ id: 'all', name: 'All' }, ...(persons || [])]}
+                valueKey="id"
+                displayKey="name"
+              />
+            </View>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={() => setFilters({ startDate: null, endDate: null, type: 'all', categoryId: 'all', personId: 'all' })}
+              >
+                <Text style={styles.resetButtonText}>Reset Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Export Data</Text>
+          <View style={styles.exportButtons}>
+            <Card style={styles.exportCard}>
+              <TouchableOpacity onPress={exportToCSV}>
+                <Text style={styles.exportIcon}>📄</Text>
+                <Text style={styles.exportTitle}>Export CSV</Text>
+                <Text style={styles.exportSubtitle}>Open in Excel/Sheets</Text>
+              </TouchableOpacity>
+            </Card>
+            <Card style={styles.exportCard}>
+              <TouchableOpacity onPress={exportToXLSX}>
+                <Text style={styles.exportIcon}>📊</Text>
+                <Text style={styles.exportTitle}>Export Excel</Text>
+                <Text style={styles.exportSubtitle}>.xlsx workbook</Text>
+              </TouchableOpacity>
+            </Card>
+            <Card style={styles.exportCard}>
+              <TouchableOpacity onPress={exportToPDF}>
+                <Text style={styles.exportIcon}>🧾</Text>
+                <Text style={styles.exportTitle}>Export PDF</Text>
+                <Text style={styles.exportSubtitle}>Summary report</Text>
+              </TouchableOpacity>
+            </Card>
+          </View>
+        </View>
+
         {/* Header - Matching AccountsListScreen style */}
 
         {/* Debug Section - Remove after fixing */}

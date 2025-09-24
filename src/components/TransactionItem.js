@@ -26,13 +26,16 @@ const TransactionItem = ({
   const transactionData = transaction || {};
   const finalType = transactionData.type || type;
   const finalAmount = transactionData.amount || amount;
-  const finalCategory = resolveCategoryName(transactionData.category || category, categories);
+  const finalCategory = resolveCategoryName(
+    transactionData.category || category,
+    categories
+  );
   const finalNotes = transactionData.notes || notes;
   const finalDate = transactionData.date || date;
   const finalPersonName = transactionData.personName || personName;
   const finalAttachment = transactionData.attachment || attachment;
   const finalTitle = transactionData.title || title || finalCategory || 'Transaction';
-  console.log({finalCategory})
+  console.log({transactionData})
 
   // Safety check - if no type is provided, don't render
   if (!finalType) {

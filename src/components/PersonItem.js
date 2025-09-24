@@ -30,10 +30,8 @@ const PersonItem = ({
 
   const getRankColor = (rankIndex) => {
     switch (rankIndex) {
-      case 0: return '#FFD700'; // Gold
-      case 1: return '#C0C0C0'; // Silver
-      case 2: return '#CD7F32'; // Bronze
-      default: return COLORS.PRIMARY;
+    
+      default: return COLORS.BLACK;
     }
   };
 
